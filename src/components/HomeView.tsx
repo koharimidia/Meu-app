@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task, CalendarEvent, FinanceItem } from '../types';
-import { formatMoney, formatDateBR, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
+import { formatMoney, formatDateBR, formatRelativeDate, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
 import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar } from 'lucide-react';
 
 interface HomeViewProps {
@@ -71,16 +71,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const today = todayISO();
 
-  // Tasks due today or pending
-  const todayTasks = tasks
-    .filter((t) => t.due === today || (!t.done && t.due <= today))
+  // Current week bounds (Monday to Sunday)
+  const currDate = new Date();
+  const dayOfWeek = currDate.getDay(); // 0 is Sunday, 1 is Monday...
+  const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+  const mondayDate = new Date(currDate);
+  mondayDate.setDate(currDate.getDate() + diffToMonday);
+  const mondayISO = `${mondayDate.getFullYear()}-${String(mondayDate.getMonth() + 1).padStart(2, '0')}-${String(mondayDate.getDate()).padStart(2, '0')}`;
+
+  const sundayDate = new Date(mondayDate);
+  sundayDate.setDate(mondayDate.getDate() + 6);
+  const sundayISO = `${sundayDate.getFullYear()}-${String(sundayDate.getMonth() + 1).padStart(2, '0')}-${String(sundayDate.getDate()).padStart(2, '0')}`;
+
+  // Tasks for the week (due this week OR overdue and still pending)
+  const weekTasks = tasks
+    .filter((t) => {
+      const due = toISODate(t.due);
+      if (!due) return !t.done;
+      // Due in current week
+      if (due >= mondayISO && due <= sundayISO) return true;
+      // Overdue and still pending (active priorities)
+      if (!t.done && due < mondayISO) return true;
+      return false;
+    })
     .sort((a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1;
       const prioOrder: Record<string, number> = { Alta: 0, Média: 1, Baixa: 2 };
-      return (prioOrder[a.priority] ?? 1) - (prioOrder[b.priority] ?? 1);
+      const pDiff = (prioOrder[a.priority] ?? 1) - (prioOrder[b.priority] ?? 1);
+      if (pDiff !== 0) return pDiff;
+      return (toISODate(a.due) || '').localeCompare(toISODate(b.due) || '');
     });
 
-  const pendingTodayCount = todayTasks.filter((t) => !t.done).length;
+  const pendingWeekCount = weekTasks.filter((t) => !t.done).length;
 
   // Events for today
   const todayEvents = events
@@ -133,14 +155,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <div className="space-y-5">
       {/* Upper Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* 1. Today's Priorities (Card span 7) */}
+        {/* 1. Week's Priorities (Card span 7) */}
         <div className="lg:col-span-7 bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-[#14283a]">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-white tracking-wide">🎯 Prioridades de Hoje</h3>
+                <h3 className="text-sm font-bold text-white tracking-wide">🎯 Prioridades da Semana</h3>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/20">
-                  {pendingTodayCount} pendentes
+                  {pendingWeekCount} pendentes
                 </span>
               </div>
               <button
@@ -151,15 +173,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </button>
             </div>
 
-            {todayTasks.length === 0 ? (
+            {weekTasks.length === 0 ? (
               <div className="py-8 text-center text-xs text-[#8194a8]">
-                Nenhuma tarefa prioritária agendada para hoje. Tudo em dia! ✨
+                Nenhuma tarefa prioritária agendada para esta semana. Tudo em dia! ✨
               </div>
             ) : (
               <div className="divide-y divide-[#14283a] max-h-[290px] overflow-y-auto pr-1">
-                {todayTasks.map((t) => {
+                {weekTasks.map((t) => {
                   const prio = PRIORITY_STYLES[t.priority] || PRIORITY_STYLES.Média;
                   const cat = CATEGORY_COLORS[t.category] || CATEGORY_COLORS.Trabalho;
+                  const rel = formatRelativeDate(t.due);
                   return (
                     <div
                       key={t.id}
@@ -190,8 +213,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${cat.bg} ${cat.text} ${cat.border}`}>
                               {t.category}
                             </span>
-                            <span className="text-[10px] text-[#6f8498]">
-                              {formatDateBR(t.due)}
+                            <span
+                              className={`text-[10px] ${
+                                rel.isToday
+                                  ? 'text-cyan-400 font-semibold'
+                                  : rel.isPast && !t.done
+                                  ? 'text-rose-400 font-semibold'
+                                  : 'text-[#6f8498]'
+                              }`}
+                            >
+                              {rel.isToday ? 'Hoje' : formatDateBR(t.due)}
                             </span>
                           </div>
                         </div>
