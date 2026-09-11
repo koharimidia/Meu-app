@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarEvent, Category } from '../types';
 import { formatDateBR, CATEGORY_COLORS, todayISO } from '../lib/formatters';
 import {
@@ -16,6 +16,9 @@ import {
   ExternalLink,
   AlertTriangle,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
 } from 'lucide-react';
 
 interface AgendaViewProps {
@@ -44,6 +47,22 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const [showOAuthHelp, setShowOAuthHelp] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Month and Year state for the calendar view
+  const initialDate = selectedDateFilter ? new Date(selectedDateFilter + 'T12:00:00') : new Date();
+  const [viewYear, setViewYear] = useState<number>(initialDate.getFullYear());
+  const [viewMonth, setViewMonth] = useState<number>(initialDate.getMonth());
+
+  useEffect(() => {
+    if (selectedDateFilter) {
+      setDateFilter(selectedDateFilter);
+      const parts = selectedDateFilter.split('-');
+      if (parts.length === 3) {
+        setViewYear(parseInt(parts[0], 10));
+        setViewMonth(parseInt(parts[1], 10) - 1);
+      }
+    }
+  }, [selectedDateFilter]);
+
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
   const handleCopyOrigin = () => {
@@ -56,6 +75,13 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
   const handleDateChange = (val: string) => {
     setDateFilter(val);
+    if (val) {
+      const parts = val.split('-');
+      if (parts.length === 3) {
+        setViewYear(parseInt(parts[0], 10));
+        setViewMonth(parseInt(parts[1], 10) - 1);
+      }
+    }
     if (onSelectDateFilter) onSelectDateFilter(val);
   };
 
@@ -65,22 +91,61 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     if (onSelectDateFilter) onSelectDateFilter('');
   };
 
-  // Filter events
+  const prevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+    setDateFilter(''); // When changing month, clear specific day to show the new month
+    if (onSelectDateFilter) onSelectDateFilter('');
+  };
+
+  const nextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+    setDateFilter('');
+    if (onSelectDateFilter) onSelectDateFilter('');
+  };
+
+  const goToCurrentMonth = () => {
+    const n = new Date();
+    setViewYear(n.getFullYear());
+    setViewMonth(n.getMonth());
+    setDateFilter('');
+    if (onSelectDateFilter) onSelectDateFilter('');
+  };
+
+  const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+
+  // Filter events strictly:
+  // 1. If a specific date is selected: ONLY show that exact date!
+  // 2. If no specific date is selected: ONLY show items from the selected month!
   let filtered = [...events].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
   if (dateFilter) {
     filtered = filtered.filter((e) => e.date === dateFilter);
+  } else {
+    filtered = filtered.filter((e) => (e.date || '').startsWith(monthPrefix));
   }
+
   if (categoryFilter) {
     filtered = filtered.filter((e) => e.category === categoryFilter);
   }
 
   // Monthly Calendar preview in Agenda
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
   const today = todayISO();
+
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
     <div className="space-y-5">
@@ -160,7 +225,54 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
         </div>
 
         {/* Compact interactive month view */}
-        <div className="mt-4 p-3 bg-[#081522] rounded-xl border border-[#162a3d]">
+        <div className="mt-4 p-3.5 bg-[#081522] rounded-xl border border-[#162a3d]">
+          {/* Month Navigation Header */}
+          <div className="flex items-center justify-between mb-3 px-1 pb-2 border-b border-[#14283a]">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={prevMonth}
+                className="p-1.5 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors"
+                title="Mês anterior"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <h3 className="text-sm font-bold text-white capitalize tracking-wide">
+                {monthName}
+              </h3>
+              <button
+                type="button"
+                onClick={nextMonth}
+                className="p-1.5 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors"
+                title="Próximo mês"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {(viewMonth !== new Date().getMonth() || viewYear !== new Date().getFullYear()) && (
+                <button
+                  type="button"
+                  onClick={goToCurrentMonth}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-semibold px-2.5 py-1 rounded bg-[#0e2133] border border-blue-500/30 transition-colors"
+                >
+                  Mês Atual
+                </button>
+              )}
+              {dateFilter && (
+                <button
+                  type="button"
+                  onClick={() => handleDateChange('')}
+                  className="text-xs text-amber-300 hover:text-amber-200 font-semibold px-2.5 py-1 rounded bg-[#1f2316] border border-amber-500/30 flex items-center gap-1 transition-colors"
+                >
+                  <span>Ver mês completo</span>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#6f8498] mb-1">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
               <div key={d}>{d}</div>
@@ -168,11 +280,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           </div>
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-              <div key={`cal-empty-${i}`} className="h-10" />
+              <div key={`cal-empty-${i}`} className="h-11" />
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
-              const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const dayEvents = events.filter((e) => e.date === dateStr);
               const isSelected = dateFilter === dateStr;
               const isCurrent = dateStr === today;
@@ -181,24 +293,25 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                 <button
                   key={`agenda-day-${day}`}
                   onClick={() => handleDateChange(isSelected ? '' : dateStr)}
-                  className={`h-11 p-1 rounded-lg border text-left transition-all flex flex-col justify-between ${
+                  className={`h-11 p-1 rounded-lg border text-left transition-all flex flex-col justify-between cursor-pointer ${
                     isSelected
-                      ? 'border-blue-400 bg-blue-600/25 ring-1 ring-blue-400'
+                      ? 'border-blue-400 bg-blue-600/30 ring-2 ring-blue-400 shadow-md shadow-blue-500/20'
                       : isCurrent
                       ? 'border-blue-500/60 bg-[#0c2236]'
                       : 'border-[#172c40] bg-[#07121d] hover:border-[#274665]'
                   }`}
+                  title={dayEvents.length > 0 ? `${dayEvents.length} compromisso(s) em ${formatDateBR(dateStr)}` : formatDateBR(dateStr)}
                 >
                   <div className="flex items-center justify-between w-full">
                     <span
                       className={`text-[10px] font-bold ${
-                        isSelected ? 'text-white' : isCurrent ? 'text-blue-400' : 'text-[#8194a8]'
+                        isSelected ? 'text-white font-black' : isCurrent ? 'text-blue-400' : 'text-[#8194a8]'
                       }`}
                     >
                       {day}
                     </span>
                     {dayEvents.length > 0 && (
-                      <span className="text-[9px] px-1 rounded-full bg-blue-500/20 text-blue-300 font-bold">
+                      <span className={`text-[9px] px-1 rounded-full font-bold ${isSelected ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-300'}`}>
                         {dayEvents.length}
                       </span>
                     )}
@@ -225,12 +338,15 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
         {/* Filters Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-[#14283a]">
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => handleDateChange(e.target.value)}
-              className="bg-[#0b1a29] border border-[#20374b] text-[#dce7f2] rounded-lg px-3 py-1.5 text-xs outline-none focus:border-blue-500"
-            />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-[#8194a8] font-medium">Data:</span>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="bg-[#0b1a29] border border-[#20374b] text-[#dce7f2] rounded-lg px-3 py-1.5 text-xs outline-none focus:border-blue-500"
+              />
+            </div>
 
             <select
               value={categoryFilter}
@@ -248,24 +364,55 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
             {(dateFilter || categoryFilter) && (
               <button
                 onClick={handleClear}
-                className="text-xs text-[#8194a8] hover:text-white px-2.5 py-1.5 rounded bg-[#102233] border border-[#28445b] transition-colors"
+                className="text-xs text-[#8194a8] hover:text-white px-2.5 py-1.5 rounded bg-[#102233] border border-[#28445b] transition-colors flex items-center gap-1"
               >
-                Limpar filtros
+                <X size={12} />
+                <span>Limpar filtros</span>
               </button>
             )}
           </div>
 
-          <span className="text-xs text-[#8194a8]">
-            {filtered.length} compromisso{filtered.length === 1 ? '' : 's'} encontrado{filtered.length === 1 ? '' : 's'}
-          </span>
+          <div className="flex items-center gap-2">
+            {dateFilter ? (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                Dia selecionado: {formatDateBR(dateFilter)} ({filtered.length})
+              </span>
+            ) : (
+              <span className="text-xs text-[#8194a8]">
+                Mês de {monthName}: <strong className="text-white">{filtered.length}</strong> compromisso{filtered.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Events List / Table */}
       <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl overflow-hidden shadow-lg">
+        <div className="px-5 py-3 border-b border-[#14283a] bg-[#071320] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CalendarIcon size={15} className="text-blue-400" />
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
+              {dateFilter
+                ? `Compromissos de ${formatDateBR(dateFilter)}`
+                : `Compromissos de ${monthName}`}
+            </span>
+          </div>
+          {dateFilter && (
+            <button
+              type="button"
+              onClick={() => handleDateChange('')}
+              className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors cursor-pointer"
+            >
+              ← Ver todos de {monthName}
+            </button>
+          )}
+        </div>
+
         {filtered.length === 0 ? (
           <div className="p-12 text-center text-xs text-[#8194a8]">
-            Nenhum compromisso encontrado para o filtro selecionado.
+            {dateFilter
+              ? `Nenhum compromisso agendado para o dia ${formatDateBR(dateFilter)}.`
+              : `Nenhum compromisso agendado para o mês de ${monthName}.`}
           </div>
         ) : (
           <div className="overflow-x-auto">

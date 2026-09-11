@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task, CalendarEvent, FinanceItem, SheetExpensePoint } from '../types';
 import { formatMoney, formatDateBR, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
-import { Check, Clock, Plus, RefreshCw, ChevronRight, TrendingUp, AlertCircle } from 'lucide-react';
+import { Check, Clock, Plus, RefreshCw, ChevronRight, ChevronLeft, TrendingUp, AlertCircle } from 'lucide-react';
 
 interface HomeViewProps {
   tasks: Task[];
@@ -38,6 +38,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectDateAgenda,
 }) => {
   const [hoveredBar, setHoveredBar] = useState<SheetExpensePoint | null>(null);
+
+  const now = new Date();
+  const [calYear, setCalYear] = useState<number>(now.getFullYear());
+  const [calMonth, setCalMonth] = useState<number>(now.getMonth());
+
+  const prevCalMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear((y) => y - 1);
+    } else {
+      setCalMonth((m) => m - 1);
+    }
+  };
+
+  const nextCalMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear((y) => y + 1);
+    } else {
+      setCalMonth((m) => m + 1);
+    }
+  };
 
   const today = todayISO();
 
@@ -95,13 +117,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const categoryEntries = Object.entries(expenseCategories).sort((a, b) => b[1] - a[1]);
 
   // Calendar rendering helper
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
-
-  const monthLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+  const monthLabel = new Date(calYear, calMonth, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
   // Max value for bar chart
   const maxSheetAmount = Math.max(...sheetData.points.map((p) => p.amount), 100);
@@ -491,10 +509,41 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* 4. Month Calendar Overview (Full width grid) */}
       <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg">
-        <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#14283a]">
-          <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
-            🗓 Calendário <span className="text-xs font-normal text-[#8194a8] capitalize">— {monthLabel}</span>
-          </h3>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-2 border-b border-[#14283a]">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={prevCalMonth}
+              className="p-1 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
+              title="Mês anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
+              <span>Calendário</span>
+              <span className="text-xs font-semibold text-blue-300 capitalize">— {monthLabel}</span>
+            </h3>
+            <button
+              type="button"
+              onClick={nextCalMonth}
+              className="p-1 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
+              title="Próximo mês"
+            >
+              <ChevronRight size={16} />
+            </button>
+            {(calMonth !== now.getMonth() || calYear !== now.getFullYear()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCalYear(now.getFullYear());
+                  setCalMonth(now.getMonth());
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 font-semibold px-2 py-0.5 rounded bg-[#0e2133] border border-blue-500/30 transition-colors"
+              >
+                Mês Atual
+              </button>
+            )}
+          </div>
           <span className="text-[11px] text-[#8194a8]">Clique em um dia para inspecionar</span>
         </div>
 
@@ -516,7 +565,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Days */}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const dayNum = i + 1;
-            const dayString = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+            const dayString = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
             const isToday = dayString === today;
 
             const dayEvents = events.filter((e) => e.date === dayString);

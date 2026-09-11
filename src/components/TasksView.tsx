@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { Task, Priority, Category } from '../types';
 import { formatDateBR, formatRelativeDate, CATEGORY_COLORS, PRIORITY_STYLES, todayISO } from '../lib/formatters';
-import { CheckSquare, Plus, Trash2, Edit2, Check, AlertTriangle, Filter } from 'lucide-react';
+import {
+  CheckSquare,
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
+  AlertTriangle,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Layers,
+} from 'lucide-react';
 
 interface TasksViewProps {
   tasks: Task[];
@@ -18,15 +30,53 @@ export const TasksView: React.FC<TasksViewProps> = ({
   onDeleteTask,
   onQuickAddTask,
 }) => {
+  const now = new Date();
+  const [viewYear, setViewYear] = useState<number>(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState<number>(now.getMonth());
+  const [onlySelectedMonth, setOnlySelectedMonth] = useState<boolean>(true); // default true: strictly show only tasks of selected month
+
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'done'>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [quickTitle, setQuickTitle] = useState('');
 
+  const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const prevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const goToCurrentMonth = () => {
+    const n = new Date();
+    setViewYear(n.getFullYear());
+    setViewMonth(n.getMonth());
+  };
+
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickTitle.trim()) return;
-    onQuickAddTask(quickTitle.trim(), 'Média', 'Trabalho', todayISO());
+    const today = todayISO();
+    const isCurrentMonth = today.startsWith(monthPrefix);
+    const dueDate = isCurrentMonth ? today : `${monthPrefix}-01`;
+    onQuickAddTask(quickTitle.trim(), 'Média', 'Trabalho', dueDate);
     setQuickTitle('');
   };
 
@@ -35,13 +85,23 @@ export const TasksView: React.FC<TasksViewProps> = ({
     return (a.due || '').localeCompare(b.due || '');
   });
 
+  // Filter strictly by the selected month by default
+  if (onlySelectedMonth) {
+    filtered = filtered.filter((t) => (t.due || '').startsWith(monthPrefix));
+  }
+
   if (statusFilter === 'open') filtered = filtered.filter((t) => !t.done);
   if (statusFilter === 'done') filtered = filtered.filter((t) => t.done);
   if (priorityFilter) filtered = filtered.filter((t) => t.priority === priorityFilter);
   if (categoryFilter) filtered = filtered.filter((t) => t.category === categoryFilter);
 
-  const pendingCount = tasks.filter((t) => !t.done).length;
-  const completedCount = tasks.filter((t) => t.done).length;
+  // Month-specific task counts
+  const monthTasks = tasks.filter((t) => (t.due || '').startsWith(monthPrefix));
+  const pendingMonthCount = monthTasks.filter((t) => !t.done).length;
+  const completedMonthCount = monthTasks.filter((t) => t.done).length;
+
+  const totalPending = tasks.filter((t) => !t.done).length;
+  const totalCompleted = tasks.filter((t) => t.done).length;
 
   return (
     <div className="space-y-5">
@@ -54,7 +114,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
               <span>Gerenciador de Tarefas</span>
             </h2>
             <p className="text-xs text-[#8194a8] mt-0.5">
-              {pendingCount} pendente{pendingCount === 1 ? '' : 's'} · {completedCount} concluída{completedCount === 1 ? '' : 's'}
+              {onlySelectedMonth ? (
+                <>
+                  Tarefas de <span className="text-blue-300 font-semibold capitalize">{monthName}</span>: {pendingMonthCount} pendente{pendingMonthCount === 1 ? '' : 's'} · {completedMonthCount} concluída{completedMonthCount === 1 ? '' : 's'}
+                </>
+              ) : (
+                <>
+                  Total geral: {totalPending} pendente{totalPending === 1 ? '' : 's'} · {totalCompleted} concluída{totalCompleted === 1 ? '' : 's'}
+                </>
+              )}
             </p>
           </div>
 
@@ -68,19 +136,84 @@ export const TasksView: React.FC<TasksViewProps> = ({
           </button>
         </div>
 
+        {/* Month Selector Bar */}
+        <div className="mt-4 p-3 bg-[#081522] rounded-xl border border-[#162a3d] flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="p-1.5 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
+              title="Mês anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div className="flex items-center gap-2">
+              <Calendar size={15} className="text-blue-400" />
+              <span className="text-sm font-bold text-white capitalize tracking-wide">
+                {monthName}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="p-1.5 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
+              title="Próximo mês"
+            >
+              <ChevronRight size={16} />
+            </button>
+            {(viewMonth !== now.getMonth() || viewYear !== now.getFullYear()) && (
+              <button
+                type="button"
+                onClick={goToCurrentMonth}
+                className="text-xs text-blue-400 hover:text-blue-300 font-semibold px-2 py-0.5 rounded bg-[#0e2133] border border-blue-500/30 transition-colors"
+              >
+                Mês Atual
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOnlySelectedMonth(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+                onlySelectedMonth
+                  ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                  : 'bg-[#0e2133] text-[#8194a8] hover:text-white border-[#203a53]'
+              }`}
+            >
+              <Calendar size={13} />
+              <span>Somente Mês Selecionado</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnlySelectedMonth(false)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+                !onlySelectedMonth
+                  ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                  : 'bg-[#0e2133] text-[#8194a8] hover:text-white border-[#203a53]'
+              }`}
+            >
+              <Layers size={13} />
+              <span>Todos os Meses</span>
+            </button>
+          </div>
+        </div>
+
         {/* Quick Add Bar */}
         <form onSubmit={handleQuickSubmit} className="mt-4 flex items-center gap-2">
           <input
             type="text"
             value={quickTitle}
             onChange={(e) => setQuickTitle(e.target.value)}
-            placeholder="Adicionar tarefa rápida para hoje (pressione Enter)..."
+            placeholder={`Adicionar tarefa rápida para ${monthName} (pressione Enter)...`}
             className="flex-1 bg-[#0b1a29] border border-[#20374b] rounded-lg px-3.5 py-2 text-xs text-[#dce7f2] placeholder-[#6f8498] outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
           />
           <button
             type="submit"
             disabled={!quickTitle.trim()}
-            className="bg-[#102233] hover:bg-[#16304a] text-blue-300 border border-[#28445b] px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 shrink-0"
+            className="bg-[#102233] hover:bg-[#16304a] text-blue-300 border border-[#28445b] px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 shrink-0 cursor-pointer"
           >
             + Adicionar
           </button>
@@ -96,7 +229,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   statusFilter === 'all' ? 'bg-[#12304b] text-white' : 'text-[#8194a8] hover:text-white'
                 }`}
               >
-                Todas ({tasks.length})
+                Todas ({onlySelectedMonth ? monthTasks.length : tasks.length})
               </button>
               <button
                 onClick={() => setStatusFilter('open')}
@@ -104,7 +237,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   statusFilter === 'open' ? 'bg-[#12304b] text-white' : 'text-[#8194a8] hover:text-white'
                 }`}
               >
-                Pendentes ({pendingCount})
+                Pendentes ({onlySelectedMonth ? pendingMonthCount : totalPending})
               </button>
               <button
                 onClick={() => setStatusFilter('done')}
@@ -112,7 +245,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   statusFilter === 'done' ? 'bg-[#12304b] text-white' : 'text-[#8194a8] hover:text-white'
                 }`}
               >
-                Concluídas ({completedCount})
+                Concluídas ({onlySelectedMonth ? completedMonthCount : totalCompleted})
               </button>
             </div>
 
@@ -142,16 +275,44 @@ export const TasksView: React.FC<TasksViewProps> = ({
           </div>
 
           <span className="text-xs text-[#8194a8]">
-            {filtered.length} listada{filtered.length === 1 ? '' : 's'}
+            {filtered.length} tarefa{filtered.length === 1 ? '' : 's'} exibida{filtered.length === 1 ? '' : 's'}
           </span>
         </div>
       </div>
 
       {/* Tasks Table */}
       <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl overflow-hidden shadow-lg">
+        <div className="px-5 py-3 border-b border-[#14283a] bg-[#071320] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckSquare size={15} className="text-blue-400" />
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
+              {onlySelectedMonth ? `Tarefas de ${monthName}` : 'Todas as Tarefas'}
+            </span>
+          </div>
+          {onlySelectedMonth ? (
+            <button
+              type="button"
+              onClick={() => setOnlySelectedMonth(false)}
+              className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors cursor-pointer"
+            >
+              Ver todos os meses →
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setOnlySelectedMonth(true)}
+              className="text-[11px] text-blue-400 hover:text-blue-300 font-medium transition-colors cursor-pointer"
+            >
+              ← Filtrar por {monthName}
+            </button>
+          )}
+        </div>
+
         {filtered.length === 0 ? (
           <div className="p-12 text-center text-xs text-[#8194a8]">
-            Nenhuma tarefa encontrada com os filtros selecionados.
+            {onlySelectedMonth
+              ? `Nenhuma tarefa cadastrada para o mês de ${monthName}.`
+              : 'Nenhuma tarefa encontrada com os filtros selecionados.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
