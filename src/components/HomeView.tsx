@@ -24,6 +24,21 @@ interface HomeViewProps {
   onSelectDateAgenda?: (date: string) => void;
 }
 
+const MONTH_NAMES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
 export const HomeView: React.FC<HomeViewProps> = ({
   tasks,
   events,
@@ -59,6 +74,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     } else {
       setCalMonth((m) => m + 1);
     }
+  };
+
+  const handleSelectCalMonth = (m: number) => {
+    setCalMonth(m);
+  };
+
+  const handleSelectCalYear = (y: number) => {
+    setCalYear(y);
   };
 
   const today = todayISO();
@@ -510,21 +533,50 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* 4. Month Calendar Overview (Full width grid) */}
       <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-2 border-b border-[#14283a]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
+              id="btn-home-prev-month"
               onClick={prevCalMonth}
               className="p-1 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
               title="Mês anterior"
             >
               <ChevronLeft size={16} />
             </button>
-            <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
-              <span>Calendário</span>
-              <span className="text-xs font-semibold text-blue-300 capitalize">— {monthLabel}</span>
-            </h3>
+
+            {/* Direct Month Selector */}
+            <select
+              id="select-home-month"
+              value={calMonth}
+              onChange={(e) => handleSelectCalMonth(Number(e.target.value))}
+              className="bg-[#0e2133] hover:bg-[#132c44] border border-[#203a53] text-white font-bold text-xs rounded-lg px-2 py-1 outline-none focus:border-blue-500 cursor-pointer transition-colors capitalize"
+              title="Mudar mês quando quiser"
+            >
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={name} value={idx} className="bg-[#081522] text-white">
+                  {name}
+                </option>
+              ))}
+            </select>
+
+            {/* Direct Year Selector */}
+            <select
+              id="select-home-year"
+              value={calYear}
+              onChange={(e) => handleSelectCalYear(Number(e.target.value))}
+              className="bg-[#0e2133] hover:bg-[#132c44] border border-[#203a53] text-white font-bold text-xs rounded-lg px-2 py-1 outline-none focus:border-blue-500 cursor-pointer transition-colors"
+              title="Mudar ano quando quiser"
+            >
+              {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((yr) => (
+                <option key={yr} value={yr} className="bg-[#081522] text-white">
+                  {yr}
+                </option>
+              ))}
+            </select>
+
             <button
               type="button"
+              id="btn-home-next-month"
               onClick={nextCalMonth}
               className="p-1 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
               title="Próximo mês"
@@ -534,11 +586,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {(calMonth !== now.getMonth() || calYear !== now.getFullYear()) && (
               <button
                 type="button"
+                id="btn-home-today"
                 onClick={() => {
                   setCalYear(now.getFullYear());
                   setCalMonth(now.getMonth());
                 }}
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold px-2 py-0.5 rounded bg-[#0e2133] border border-blue-500/30 transition-colors"
+                className="text-xs text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 rounded-lg bg-[#0e2133] border border-blue-500/30 transition-colors cursor-pointer"
               >
                 Mês Atual
               </button>

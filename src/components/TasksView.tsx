@@ -23,6 +23,21 @@ interface TasksViewProps {
   onQuickAddTask: (title: string, priority: Priority, category: Category, due: string) => void;
 }
 
+const MONTH_NAMES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
 export const TasksView: React.FC<TasksViewProps> = ({
   tasks,
   onToggleTask,
@@ -62,6 +77,14 @@ export const TasksView: React.FC<TasksViewProps> = ({
     } else {
       setViewMonth((m) => m + 1);
     }
+  };
+
+  const handleSelectMonth = (m: number) => {
+    setViewMonth(m);
+  };
+
+  const handleSelectYear = (y: number) => {
+    setViewYear(y);
   };
 
   const goToCurrentMonth = () => {
@@ -138,23 +161,50 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* Month Selector Bar */}
         <div className="mt-4 p-3 bg-[#081522] rounded-xl border border-[#162a3d] flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
+              id="btn-tasks-prev-month"
               onClick={prevMonth}
               className="p-1.5 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
               title="Mês anterior"
             >
               <ChevronLeft size={16} />
             </button>
-            <div className="flex items-center gap-2">
-              <Calendar size={15} className="text-blue-400" />
-              <span className="text-sm font-bold text-white capitalize tracking-wide">
-                {monthName}
-              </span>
-            </div>
+
+            {/* Direct Month Selector */}
+            <select
+              id="select-tasks-month"
+              value={viewMonth}
+              onChange={(e) => handleSelectMonth(Number(e.target.value))}
+              className="bg-[#0e2133] hover:bg-[#132c44] border border-[#203a53] text-white font-bold text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500 cursor-pointer transition-colors capitalize"
+              title="Mudar mês quando quiser"
+            >
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={name} value={idx} className="bg-[#081522] text-white">
+                  {name}
+                </option>
+              ))}
+            </select>
+
+            {/* Direct Year Selector */}
+            <select
+              id="select-tasks-year"
+              value={viewYear}
+              onChange={(e) => handleSelectYear(Number(e.target.value))}
+              className="bg-[#0e2133] hover:bg-[#132c44] border border-[#203a53] text-white font-bold text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500 cursor-pointer transition-colors"
+              title="Mudar ano quando quiser"
+            >
+              {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((yr) => (
+                <option key={yr} value={yr} className="bg-[#081522] text-white">
+                  {yr}
+                </option>
+              ))}
+            </select>
+
             <button
               type="button"
+              id="btn-tasks-next-month"
               onClick={nextMonth}
               className="p-1.5 rounded-lg bg-[#0e2133] hover:bg-[#16334f] text-[#8194a8] hover:text-white border border-[#203a53] transition-colors cursor-pointer"
               title="Próximo mês"

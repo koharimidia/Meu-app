@@ -116,8 +116,11 @@ export async function fetchGoogleCalendarEvents(): Promise<CalendarEvent[]> {
   const calListRes = await window.gapi.client.calendar.calendarList.list();
   const calendars = calListRes.result.items || [{ id: 'primary' }];
 
-  const timeMin = new Date(new Date().setMonth(new Date().getMonth() - 4)).toISOString();
-  const timeMax = new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString();
+  const now = new Date();
+  const dMin = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+  const dMax = new Date(now.getFullYear(), now.getMonth() + 12, 28);
+  const timeMin = dMin.toISOString();
+  const timeMax = dMax.toISOString();
 
   const collectedEvents: CalendarEvent[] = [];
 
