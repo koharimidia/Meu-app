@@ -7,8 +7,12 @@ declare global {
   }
 }
 
-export const GCAL_CLIENT_ID = '318981545392-03v6umajs5v59js0ng5juj3cemtsnjed.apps.googleusercontent.com';
-export const GCAL_API_KEY = 'AIzaSyCXkRNVZA-ubBfiHaB8sYKSb2lOJmgzti4';
+export const GCAL_CLIENT_ID =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID) ||
+  '318981545392-03v6umajs5v59js0ng5juj3cemtsnjed.apps.googleusercontent.com';
+export const GCAL_API_KEY =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GOOGLE_API_KEY) ||
+  'AIzaSyCXkRNVZA-ubBfiHaB8sYKSb2lOJmgzti4';
 export const GCAL_DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
 export const GCAL_SCOPES = 'https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
 
@@ -73,6 +77,10 @@ export function requestCalendarAuth(
         client_id: GCAL_CLIENT_ID,
         scope: GCAL_SCOPES,
         callback: '',
+        error_callback: (err: any) => {
+          console.warn('OAuth GIS error callback:', err);
+          onError(err?.message || 'Erro de autorização do Google. Verifique as origens autorizadas no Google Cloud.');
+        },
       });
     } catch (e) {
       onError('Falha ao inicializar cliente OAuth do Google.');

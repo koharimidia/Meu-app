@@ -1,7 +1,22 @@
 import React, { useState } from 'react';
 import { CalendarEvent, Category } from '../types';
 import { formatDateBR, CATEGORY_COLORS, todayISO } from '../lib/formatters';
-import { Calendar as CalendarIcon, Plus, Link, Trash2, Edit2, Clock, CheckCircle, RefreshCw } from 'lucide-react';
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  Link,
+  Trash2,
+  Edit2,
+  Clock,
+  CheckCircle,
+  RefreshCw,
+  HelpCircle,
+  Copy,
+  Check,
+  ExternalLink,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
 
 interface AgendaViewProps {
   events: CalendarEvent[];
@@ -26,6 +41,18 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 }) => {
   const [dateFilter, setDateFilter] = useState(selectedDateFilter);
   const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [showOAuthHelp, setShowOAuthHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const handleCopyOrigin = () => {
+    if (navigator.clipboard && currentOrigin) {
+      navigator.clipboard.writeText(currentOrigin);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
 
   const handleDateChange = (val: string) => {
     setDateFilter(val);
@@ -80,6 +107,19 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
+            {!isGcalConnected && (
+              <button
+                type="button"
+                id="btn-oauth-help"
+                onClick={() => setShowOAuthHelp(true)}
+                className="px-2.5 py-2 rounded-lg bg-[#0f2133] hover:bg-[#17324d] text-amber-300 hover:text-amber-200 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                title="Como resolver Erro 400 origin_mismatch"
+              >
+                <AlertTriangle size={14} className="text-amber-400" />
+                <span className="hidden sm:inline">Erro 400 / Configuração</span>
+              </button>
+            )}
+
             <button
               id="btn-gcal-sync"
               onClick={onConnectGcal}
@@ -293,6 +333,118 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* OAuth 400 origin_mismatch Help Modal */}
+      {showOAuthHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-[#091522] border border-[#1e3952] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-5 text-[#eef5fb]">
+            <div className="flex items-start justify-between gap-3 border-b border-[#162d42] pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Como resolver o Erro 400: origin_mismatch</h3>
+                  <p className="text-xs text-[#8296aa]">Autorização Google Cloud para o seu domínio</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOAuthHelp(false)}
+                className="p-1.5 rounded-lg text-[#8296aa] hover:text-white hover:bg-[#12263a] transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs text-[#cbd8e6] leading-relaxed">
+              <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-800/40 space-y-2">
+                <p className="font-semibold text-blue-200">
+                  Por que esse erro acontece?
+                </p>
+                <p className="text-[#a4bbd1]">
+                  Por motivos de segurança, o Google exige que a URL exata do site onde o app está rodando esteja na lista de <strong className="text-white">Origens JavaScript autorizadas</strong> do seu Client ID no Google Cloud Console.
+                </p>
+              </div>
+
+              {/* Step 1: URL to copy */}
+              <div className="space-y-1.5">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span>
+                  Copie a URL do seu domínio atual:
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={currentOrigin || 'https://meu-app-orcin-two.vercel.app'}
+                    className="flex-1 bg-[#060e17] border border-[#213a52] rounded-lg px-3 py-2 text-xs font-mono text-emerald-300 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyOrigin}
+                    className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    <span>{copied ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-[#8296aa]">
+                  (Dica: se for acessar pelo Vercel, a URL é <code className="text-blue-300">https://meu-app-orcin-two.vercel.app</code>)
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="space-y-1.5">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">2</span>
+                  Abra o Google Cloud Console:
+                </span>
+                <p className="text-[#a4bbd1]">
+                  Acesse a aba de Credenciais do projeto Google Cloud onde o Client ID foi criado:
+                </p>
+                <a
+                  href="https://console.cloud.google.com/apis/credentials"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#112437] hover:bg-[#18344e] border border-[#25435e] text-blue-300 font-semibold transition-colors"
+                >
+                  <span>Abrir Google Cloud Console — Credenciais</span>
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+
+              {/* Step 3 */}
+              <div className="space-y-1.5">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">3</span>
+                  Adicione a URL nas Origens Autorizadas:
+                </span>
+                <ol className="list-decimal list-inside space-y-1 text-[#a4bbd1] pl-1">
+                  <li>Clique no seu <strong>ID do cliente OAuth 2.0</strong> na lista de credenciais.</li>
+                  <li>Role até o bloco <strong>Origens JavaScript autorizadas</strong>.</li>
+                  <li>Clique em <strong>+ Adicionar URI</strong> e cole <code className="text-emerald-300 bg-[#060e17] px-1 py-0.5 rounded">https://meu-app-orcin-two.vercel.app</code> (sem barra <code className="text-amber-300">/</code> no final).</li>
+                  <li>Clique em <strong>Salvar</strong> na parte inferior.</li>
+                </ol>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-800/40 text-[11px] text-amber-200/90">
+                ⏱ O Google costuma levar de <strong>1 a 5 minutos</strong> para propagar a nova origem autorizada. Após salvar no console do Google, atualize a página e clique novamente em <strong>Conectar Google Agenda</strong>!
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowOAuthHelp(false)}
+                className="px-4 py-2 rounded-lg bg-[#162d42] hover:bg-[#1f3d59] text-white text-xs font-semibold transition-colors"
+              >
+                Entendi, vou configurar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
