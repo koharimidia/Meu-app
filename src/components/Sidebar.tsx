@@ -85,7 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 v0.3
               </span>
             </div>
-            <p className="text-[11px] text-[#8194a8] mt-1 font-medium">Produtividade & Finanças</p>
+            <p className="text-xs font-bold text-cyan-400 mt-1 tracking-wide">Central Kohari Family</p>
+            <p className="text-[11px] text-[#8194a8] mt-0.5 font-medium">Produtividade & Finanças</p>
           </div>
           {onCloseMobile && (
             <button

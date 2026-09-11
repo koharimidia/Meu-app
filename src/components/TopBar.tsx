@@ -49,7 +49,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         )}
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            Minha CENTRAL <span className="text-xl">👋</span>
+            Central Kohari Family <span className="text-xl">👋</span>
           </h1>
           <p className="text-xs text-[#8194a8] capitalize mt-0.5 font-medium">{todayText}</p>
         </div>

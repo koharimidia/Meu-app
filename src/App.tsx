@@ -417,13 +417,10 @@ export default function App() {
               tasks={filteredTasks}
               events={filteredEvents}
               finance={filteredFinance}
-              sheetData={sheetData}
               onToggleTask={handleToggleTask}
               onEditTask={(t) => setModalState({ isOpen: true, type: 'task', editItem: t })}
               onDeleteTask={handleDeleteTask}
               onOpenModal={(type) => setModalState({ isOpen: true, type, editItem: null })}
-              onRefreshSheets={loadSheets}
-              isSheetLoading={isSheetLoading}
               onSelectDateAgenda={(dateStr) => {
                 setAgendaDateFilter(dateStr);
                 setCurrentView('agenda');

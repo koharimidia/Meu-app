@@ -54,4 +54,6 @@ export type NavView = 'home' | 'agenda' | 'tasks' | 'finance' | 'work';
 export interface SheetExpensePoint {
   date: string;
   amount: number;
+  day?: number;
+  fullDate?: string;
 }

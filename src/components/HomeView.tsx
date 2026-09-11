@@ -1,26 +1,16 @@
 import React, { useState } from 'react';
-import { Task, CalendarEvent, FinanceItem, SheetExpensePoint } from '../types';
+import { Task, CalendarEvent, FinanceItem } from '../types';
 import { formatMoney, formatDateBR, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
-import { Check, Clock, Plus, RefreshCw, ChevronRight, ChevronLeft, TrendingUp, AlertCircle } from 'lucide-react';
+import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar } from 'lucide-react';
 
 interface HomeViewProps {
   tasks: Task[];
   events: CalendarEvent[];
   finance: FinanceItem[];
-  sheetData: {
-    points: SheetExpensePoint[];
-    total: number;
-    avg: number;
-    highest: { date: string; amount: number };
-    statusMessage: string;
-    isRealData: boolean;
-  };
   onToggleTask: (id: string) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   onOpenModal: (type: 'task' | 'event' | 'finance' | 'client') => void;
-  onRefreshSheets: () => void;
-  isSheetLoading: boolean;
   onSelectDateAgenda?: (date: string) => void;
 }
 
@@ -43,17 +33,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   tasks,
   events,
   finance,
-  sheetData,
   onToggleTask,
   onEditTask,
   onDeleteTask,
   onOpenModal,
-  onRefreshSheets,
-  isSheetLoading,
   onSelectDateAgenda,
 }) => {
-  const [hoveredBar, setHoveredBar] = useState<SheetExpensePoint | null>(null);
-
   const now = new Date();
   const [calYear, setCalYear] = useState<number>(now.getFullYear());
   const [calMonth, setCalMonth] = useState<number>(now.getMonth());
@@ -143,9 +128,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
   const monthLabel = new Date(calYear, calMonth, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
-  // Max value for bar chart
-  const maxSheetAmount = Math.max(...sheetData.points.map((p) => p.amount), 100);
 
   return (
     <div className="space-y-5">
@@ -456,81 +438,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Google Sheets Gastos Diários Chart (Card Full) */}
-      <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-[#14283a]">
-          <div>
-            <div className="flex items-center gap-2">
-              <TrendingUp size={16} className="text-blue-400" />
-              <h3 className="text-sm font-bold text-white tracking-wide">📈 Gastos Diários (Google Planilhas)</h3>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 font-bold">
-                Aba: GASTOS DIARIOS
-              </span>
-            </div>
-            <p className="text-[11px] text-[#8194a8] mt-0.5">{sheetData.statusMessage}</p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="text-right mr-2 hidden sm:block">
-              <span className="text-[10px] text-[#8194a8] block">Média Diária</span>
-              <span className="text-xs font-bold text-blue-300">{formatMoney(sheetData.avg)}</span>
-            </div>
-
-            <button
-              onClick={onRefreshSheets}
-              disabled={isSheetLoading}
-              className="px-3 py-1.5 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#dce7f2] border border-[#28445b] text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw size={13} className={isSheetLoading ? 'animate-spin text-blue-400' : ''} />
-              <span>Atualizar Planilha</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Interactive SVG Bar Chart */}
-        <div className="relative pt-6 pb-2">
-          {hoveredBar && (
-            <div className="absolute top-0 right-4 bg-[#07121d] border border-blue-500/40 px-2.5 py-1 rounded-md text-xs shadow-xl pointer-events-none flex items-center gap-2">
-              <span className="text-[#8194a8]">{hoveredBar.date}:</span>
-              <strong className="text-blue-400 font-bold">{formatMoney(hoveredBar.amount)}</strong>
-            </div>
-          )}
-
-          <div className="h-52 flex items-end gap-2 md:gap-3 px-2 overflow-x-auto">
-            {sheetData.points.map((p, idx) => {
-              const heightPct = Math.max(8, Math.min(100, (p.amount / maxSheetAmount) * 100));
-              const isHovered = hoveredBar?.date === p.date;
-              return (
-                <div
-                  key={`${p.date}-${idx}`}
-                  className="flex-1 min-w-[36px] flex flex-col items-center gap-1.5 group cursor-pointer"
-                  onMouseEnter={() => setHoveredBar(p)}
-                  onMouseLeave={() => setHoveredBar(null)}
-                >
-                  <span className="text-[10px] text-[#8194a8] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-bold text-blue-300">
-                    R${Math.round(p.amount)}
-                  </span>
-                  <div className="w-full bg-[#0e1d2c] rounded-t-md h-40 flex items-end p-0.5">
-                    <div
-                      className={`w-full rounded-t-sm transition-all duration-300 ${
-                        isHovered
-                          ? 'bg-gradient-to-t from-blue-600 to-cyan-400 shadow-lg shadow-blue-500/30'
-                          : 'bg-gradient-to-t from-blue-700/80 to-blue-500 hover:from-blue-600 hover:to-blue-400'
-                      }`}
-                      style={{ height: `${heightPct}%` }}
-                    />
-                  </div>
-                  <span className={`text-[10px] tracking-tight font-medium transition-colors ${isHovered ? 'text-white font-bold' : 'text-[#8194a8]'}`}>
-                    {p.date}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Month Calendar Overview (Full width grid) */}
+      {/* 3. Month Calendar Overview (Full width grid) */}
       <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-2 border-b border-[#14283a]">
           <div className="flex items-center gap-1.5 sm:gap-2">
