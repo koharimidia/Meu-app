@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Task, CalendarEvent, FinanceItem, ClientProject, InvoiceNF, InvoiceStatus, Priority, Category, FinanceType, ProjectStage } from '../types';
 import { todayISO, toISODate } from '../lib/formatters';
-import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText } from 'lucide-react';
+import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { extractInvoiceFromFile } from '../lib/invoiceReader';
 
 interface ModalsProps {
   isOpen: boolean;
@@ -72,9 +73,23 @@ export const Modals: React.FC<ModalsProps> = ({
   const [invNotes, setInvNotes] = useState('');
   const [invSheetLink, setInvSheetLink] = useState('');
 
+  // AI Invoice Extraction State
+  const [isAnalyzingPdf, setIsAnalyzingPdf] = useState(false);
+  const [analysisSuccess, setAnalysisSuccess] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analyzedFileName, setAnalyzedFileName] = useState<string | null>(null);
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+
   // Pre-fill on edit
   useEffect(() => {
     if (!isOpen) return;
+
+    // Reset AI state whenever modal opens or closes
+    setIsAnalyzingPdf(false);
+    setAnalysisSuccess(null);
+    setAnalysisError(null);
+    setAnalyzedFileName(null);
+    setIsDraggingPdf(false);
 
     if (type === 'task') {
       if (editItem) {
@@ -231,6 +246,35 @@ export const Modals: React.FC<ModalsProps> = ({
       createdAt: editItem?.createdAt || new Date().toISOString(),
     });
     onClose();
+  };
+
+  const handleProcessInvoiceFile = async (file: File) => {
+    try {
+      setIsAnalyzingPdf(true);
+      setAnalysisError(null);
+      setAnalysisSuccess(null);
+      setAnalyzedFileName(file.name);
+
+      const res = await extractInvoiceFromFile(file);
+      if (res.success && res.data) {
+        const d = res.data;
+        if (d.number) setInvNumber(d.number);
+        if (d.clientName) setInvClientName(d.clientName);
+        if (d.cnpjCpf) setInvCnpjCpf(d.cnpjCpf);
+        if (d.description) setInvDesc(d.description);
+        if (d.value !== undefined && d.value !== null) setInvValue(String(d.value));
+        if (d.taxRate !== undefined && d.taxRate !== null) setInvTaxRate(String(d.taxRate));
+        if (d.issueDate) setInvIssueDate(d.issueDate);
+        if (d.dueDate) setInvDueDate(d.dueDate);
+        if (d.notes) setInvNotes(d.notes);
+        setAnalysisSuccess(d.confidenceSummary || 'Dados fiscais extraídos com sucesso pelo Gemini!');
+      }
+    } catch (err: any) {
+      console.error('Invoice extraction error:', err);
+      setAnalysisError(err?.message || 'Erro ao processar o arquivo. Verifique o formato ou tente novamente.');
+    } finally {
+      setIsAnalyzingPdf(false);
+    }
   };
 
   const handleSubmitInvoice = (e: React.FormEvent) => {
@@ -681,6 +725,109 @@ export const Modals: React.FC<ModalsProps> = ({
         {/* Invoice (NF) Form */}
         {type === 'invoice' && (
           <form onSubmit={handleSubmitInvoice} className="space-y-3.5 text-xs">
+            {/* AI Document Upload / Reader Banner */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDraggingPdf(true);
+              }}
+              onDragLeave={() => setIsDraggingPdf(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDraggingPdf(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) handleProcessInvoiceFile(file);
+              }}
+              className={`relative rounded-xl border transition-all p-3.5 ${
+                isAnalyzingPdf
+                  ? 'bg-[#091a2a] border-cyan-500/50'
+                  : analysisSuccess
+                  ? 'bg-[#071d18] border-emerald-500/40'
+                  : isDraggingPdf
+                  ? 'bg-[#0c2236] border-blue-400 shadow-lg shadow-blue-500/20'
+                  : 'bg-[#081522] border-dashed border-[#1f384f] hover:border-cyan-500/50'
+              }`}
+            >
+              {isAnalyzingPdf ? (
+                <div className="flex items-center gap-3 py-1 text-cyan-300">
+                  <Loader2 size={20} className="animate-spin text-cyan-400 shrink-0" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-xs text-white flex items-center gap-1.5">
+                      <span>Lendo documento fiscal com Gemini IA...</span>
+                      <Sparkles size={13} className="text-cyan-400 animate-pulse" />
+                    </p>
+                    <p className="text-[11px] text-cyan-200/80">
+                      Identificando número da NF, tomador, CNPJ, serviços prestados, valores e vencimento.
+                    </p>
+                  </div>
+                </div>
+              ) : analysisSuccess ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                      <CheckCircle2 size={16} className="shrink-0" />
+                      <span>Dados preenchidos automaticamente pelo PDF!</span>
+                    </div>
+                    <label className="text-[11px] text-cyan-400 hover:underline cursor-pointer font-medium">
+                      Subir outro arquivo
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleProcessInvoiceFile(file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-[#9bb0c4] leading-relaxed">
+                    <strong className="text-white">{analyzedFileName}:</strong> {analysisSuccess}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 text-left">
+                    <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
+                      <Sparkles size={16} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-white text-xs flex items-center gap-1.5">
+                        <span>Leitura Automática de PDF da NF com IA</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          Gemini
+                        </span>
+                      </p>
+                      <p className="text-[11px] text-[#8194a8]">
+                        Arraste o PDF da sua nota fiscal (NFS-e / DANFE) para preencher todos os campos.
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="px-3 py-1.5 rounded-lg bg-[#10273c] hover:bg-[#163550] text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors shrink-0">
+                    <UploadCloud size={14} />
+                    <span>Selecionar PDF</span>
+                    <input
+                      type="file"
+                      accept="application/pdf,image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleProcessInvoiceFile(file);
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
+
+              {analysisError && (
+                <div className="mt-2.5 pt-2 border-t border-rose-500/20 flex items-center gap-1.5 text-[11px] text-rose-400">
+                  <AlertCircle size={13} className="shrink-0" />
+                  <span>{analysisError}</span>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[#91a5b8] mb-1 font-medium">Número da NF</label>

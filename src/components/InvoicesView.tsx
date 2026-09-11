@@ -16,9 +16,13 @@ import {
   FileSpreadsheet,
   Calendar,
   Filter,
+  Sparkles,
+  UploadCloud,
+  Loader2,
 } from 'lucide-react';
 import { InvoiceNF, InvoiceStatus } from '../types';
 import { formatMoney, formatDateBR, todayISO } from '../lib/formatters';
+import { extractInvoiceFromFile } from '../lib/invoiceReader';
 
 interface InvoicesViewProps {
   invoices: InvoiceNF[];
@@ -47,6 +51,41 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
   });
   const [isConfiguringSheet, setIsConfiguringSheet] = useState(false);
   const [tempSheetUrl, setTempSheetUrl] = useState(sheetUrl);
+
+  // Direct AI PDF Upload state
+  const [isReadingPdf, setIsReadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isDraggingDirectPdf, setIsDraggingDirectPdf] = useState(false);
+
+  const handleUploadPdfDirect = async (file: File) => {
+    try {
+      setIsReadingPdf(true);
+      setPdfError(null);
+      const res = await extractInvoiceFromFile(file);
+      if (res.success && res.data) {
+        const d = res.data;
+        const draftInvoice: Partial<InvoiceNF> = {
+          number: d.number || '',
+          clientName: d.clientName || '',
+          cnpjCpf: d.cnpjCpf || '',
+          description: d.description || '',
+          value: d.value || 0,
+          taxRate: d.taxRate !== undefined ? d.taxRate : 6,
+          netValue: d.netValue !== undefined ? d.netValue : (d.value ? d.value * 0.94 : 0),
+          issueDate: d.issueDate || todayISO(),
+          dueDate: d.dueDate || '',
+          status: 'emitida',
+          notes: d.notes ? `${d.notes}${d.confidenceSummary ? ` | ${d.confidenceSummary}` : ''}` : d.confidenceSummary || '',
+        };
+        onOpenModal('invoice', draftInvoice as any);
+      }
+    } catch (err: any) {
+      console.error('Invoice extraction error in InvoicesView:', err);
+      setPdfError(err?.message || 'Erro ao ler o arquivo PDF da nota fiscal.');
+    } finally {
+      setIsReadingPdf(false);
+    }
+  };
 
   const saveSheetUrl = () => {
     const trimmed = tempSheetUrl.trim();
@@ -234,6 +273,31 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
             <span className="hidden sm:inline">Exportar CSV</span>
           </button>
 
+          {/* AI Upload Button */}
+          <label className="px-3.5 py-2 rounded-lg bg-[#081e30] hover:bg-[#0f2d47] active:bg-[#143756] text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm">
+            {isReadingPdf ? (
+              <>
+                <Loader2 size={15} className="animate-spin text-cyan-400" />
+                <span>Processando NF...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={15} className="text-cyan-400" />
+                <span>Subir PDF com IA</span>
+              </>
+            )}
+            <input
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              disabled={isReadingPdf}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUploadPdfDirect(file);
+              }}
+            />
+          </label>
+
           {/* New Invoice Button */}
           <button
             id="btn-new-invoice-page"
@@ -368,6 +432,95 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* AI Invoice PDF Reader Dropzone */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDraggingDirectPdf(true);
+        }}
+        onDragLeave={() => setIsDraggingDirectPdf(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDraggingDirectPdf(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) handleUploadPdfDirect(file);
+        }}
+        className={`p-4 rounded-xl border transition-all ${
+          isReadingPdf
+            ? 'bg-[#091a2a] border-cyan-500/50'
+            : isDraggingDirectPdf
+            ? 'bg-[#0c263c] border-cyan-400 shadow-lg shadow-cyan-500/20'
+            : 'bg-[#081522] border-dashed border-[#1f384f] hover:border-cyan-500/40'
+        }`}
+      >
+        {isReadingPdf ? (
+          <div className="flex items-center gap-3 py-1">
+            <Loader2 size={24} className="animate-spin text-cyan-400 shrink-0" />
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>Lendo e extraindo dados da Nota Fiscal com Gemini IA...</span>
+                <Sparkles size={14} className="text-cyan-400 animate-pulse" />
+              </h4>
+              <p className="text-xs text-cyan-200/80">
+                Identificando tomador, CNPJ, serviços, vencimento e valores fiscais. O formulário será aberto em seguida para conferência.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
+                <Sparkles size={20} />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-white">
+                    Leitura Automática de Nota Fiscal (PDF ou Imagem)
+                  </h4>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                    IA Gemini
+                  </span>
+                </div>
+                <p className="text-xs text-[#8194a8]">
+                  Arraste o arquivo PDF da NFS-e ou DANFE aqui ou clique para selecionar. Todos os dados fiscais são preenchidos automaticamente.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="px-4 py-2 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 active:bg-cyan-600/40 text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shadow-sm">
+                <UploadCloud size={16} />
+                <span>Carregar PDF da NF</span>
+                <input
+                  type="file"
+                  accept="application/pdf,image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadPdfDirect(file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+        )}
+
+        {pdfError && (
+          <div className="mt-3 pt-2.5 border-t border-rose-500/20 flex items-center justify-between text-xs text-rose-400">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>{pdfError}</span>
+            </div>
+            <button
+              onClick={() => setPdfError(null)}
+              className="text-rose-400 hover:text-white text-xs px-2 py-0.5 rounded hover:bg-rose-500/20"
+            >
+              Fechar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filter & Search Bar */}

@@ -1,6 +1,6 @@
 {
   "name": "Central Kohari Family",
-  "description": "Painel de produtividade pessoal e familiar com gestão de tarefas, agenda sincronizada, controle financeiro, pipeline de clientes e controle de notas fiscais emitidas.",
+  "description": "Painel de produtividade pessoal e familiar com gestão de tarefas, agenda sincronizada, controle financeiro, pipeline de clientes e leitura inteligente de notas fiscais em PDF com IA.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
