@@ -9,7 +9,7 @@ declare global {
 
 export const GCAL_CLIENT_ID =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID) ||
-  '318981545392-03v6umajs5v59js0ng5juj3cemtsnjed.apps.googleusercontent.com';
+  '318981545392-eddfe24v50tdfp6dppr1pgc469li5moh.apps.googleusercontent.com';
 export const GCAL_API_KEY =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GOOGLE_API_KEY) ||
   'AIzaSyCXkRNVZA-ubBfiHaB8sYKSb2lOJmgzti4';
