@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Task, CalendarEvent, FinanceItem, ClientProject, InvoiceNF, InvoiceStatus, Priority, Category, FinanceType, ProjectStage } from '../types';
 import { todayISO, toISODate } from '../lib/formatters';
-import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { extractInvoiceFromFile } from '../lib/invoiceReader';
+import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle, HardDrive } from 'lucide-react';
+import { extractInvoiceFromFile, ExtractedInvoiceData } from '../lib/invoiceReader';
+import { GoogleDrivePickerModal } from './GoogleDrivePickerModal';
+import { DriveFile } from '../lib/googleDrive';
 
 interface ModalsProps {
   isOpen: boolean;
@@ -79,6 +81,22 @@ export const Modals: React.FC<ModalsProps> = ({
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analyzedFileName, setAnalyzedFileName] = useState<string | null>(null);
   const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+
+  const handleInvoiceExtractedFromDrive = (data: ExtractedInvoiceData, driveFile: DriveFile) => {
+    if (data.number) setInvNumber(data.number);
+    if (data.clientName) setInvClientName(data.clientName);
+    if (data.cnpjCpf) setInvCnpjCpf(data.cnpjCpf);
+    if (data.description) setInvDesc(data.description);
+    if (data.value !== undefined && data.value !== null) setInvValue(String(data.value));
+    if (data.taxRate !== undefined && data.taxRate !== null) setInvTaxRate(String(data.taxRate));
+    if (data.issueDate) setInvIssueDate(data.issueDate);
+    if (data.dueDate) setInvDueDate(data.dueDate);
+    if (data.notes) setInvNotes(data.notes);
+    if (driveFile.webViewLink) setInvSheetLink(driveFile.webViewLink);
+    setAnalyzedFileName(driveFile.name);
+    setAnalysisSuccess(data.confidenceSummary || `Arquivo ${driveFile.name} do Google Drive processado com sucesso!`);
+  };
 
   // Pre-fill on edit
   useEffect(() => {
@@ -804,19 +822,30 @@ export const Modals: React.FC<ModalsProps> = ({
                     </div>
                   </div>
 
-                  <label className="px-3 py-1.5 rounded-lg bg-[#10273c] hover:bg-[#163550] text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors shrink-0">
-                    <UploadCloud size={14} />
-                    <span>Selecionar PDF</span>
-                    <input
-                      type="file"
-                      accept="application/pdf,image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleProcessInvoiceFile(file);
-                      }}
-                    />
-                  </label>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsDriveModalOpen(true)}
+                      className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all shadow-sm"
+                    >
+                      <HardDrive size={14} />
+                      <span>Google Drive (nf-app)</span>
+                    </button>
+
+                    <label className="px-3 py-1.5 rounded-lg bg-[#10273c] hover:bg-[#163550] text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors">
+                      <UploadCloud size={14} />
+                      <span>Selecionar PDF</span>
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleProcessInvoiceFile(file);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -999,6 +1028,12 @@ export const Modals: React.FC<ModalsProps> = ({
           </form>
         )}
       </div>
+      {/* Google Drive Picker inside Modal */}
+      <GoogleDrivePickerModal
+        isOpen={isDriveModalOpen}
+        onClose={() => setIsDriveModalOpen(false)}
+        onInvoiceExtracted={handleInvoiceExtractedFromDrive}
+      />
     </div>
   );
 };

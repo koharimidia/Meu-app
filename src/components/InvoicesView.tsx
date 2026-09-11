@@ -19,10 +19,13 @@ import {
   Sparkles,
   UploadCloud,
   Loader2,
+  HardDrive,
 } from 'lucide-react';
 import { InvoiceNF, InvoiceStatus } from '../types';
 import { formatMoney, formatDateBR, todayISO } from '../lib/formatters';
-import { extractInvoiceFromFile } from '../lib/invoiceReader';
+import { extractInvoiceFromFile, ExtractedInvoiceData } from '../lib/invoiceReader';
+import { GoogleDrivePickerModal } from './GoogleDrivePickerModal';
+import { DriveFile } from '../lib/googleDrive';
 
 interface InvoicesViewProps {
   invoices: InvoiceNF[];
@@ -56,6 +59,25 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
   const [isReadingPdf, setIsReadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isDraggingDirectPdf, setIsDraggingDirectPdf] = useState(false);
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+
+  const handleInvoiceExtractedFromDrive = (data: ExtractedInvoiceData, driveFile: DriveFile) => {
+    const draftInvoice: Partial<InvoiceNF> = {
+      number: data.number || '',
+      clientName: data.clientName || '',
+      cnpjCpf: data.cnpjCpf || '',
+      description: data.description || '',
+      value: data.value || 0,
+      taxRate: data.taxRate !== undefined ? data.taxRate : 6,
+      netValue: data.netValue !== undefined ? data.netValue : (data.value ? data.value * 0.94 : 0),
+      issueDate: data.issueDate || todayISO(),
+      dueDate: data.dueDate || '',
+      status: 'emitida',
+      notes: data.notes ? `${data.notes} | Google Drive: ${driveFile.name}` : `Arquivo Google Drive: ${driveFile.name}`,
+      sheetLink: driveFile.webViewLink || '',
+    };
+    onOpenModal('invoice', draftInvoice as any);
+  };
 
   const handleUploadPdfDirect = async (file: File) => {
     try {
@@ -271,6 +293,16 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
           >
             <Download size={14} />
             <span className="hidden sm:inline">Exportar CSV</span>
+          </button>
+
+          {/* Google Drive Button */}
+          <button
+            onClick={() => setIsDriveModalOpen(true)}
+            title="Importar e extrair notas fiscais diretamente da pasta nf-app do Google Drive"
+            className="px-3.5 py-2 rounded-lg bg-[#071d2b] hover:bg-[#0c293d] active:bg-[#11354f] text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+          >
+            <HardDrive size={15} className="text-cyan-400" />
+            <span>Google Drive (nf-app)</span>
           </button>
 
           {/* AI Upload Button */}
@@ -489,10 +521,19 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsDriveModalOpen(true)}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 active:scale-95 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shadow-md shadow-cyan-600/20"
+              >
+                <HardDrive size={16} />
+                <span>Google Drive (nf-app)</span>
+              </button>
+
               <label className="px-4 py-2 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 active:bg-cyan-600/40 text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shadow-sm">
                 <UploadCloud size={16} />
-                <span>Carregar PDF da NF</span>
+                <span>Carregar PDF Local</span>
                 <input
                   type="file"
                   accept="application/pdf,image/*"
@@ -808,6 +849,12 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
           </div>
         </div>
       )}
+      {/* Google Drive Picker & Extractor Modal */}
+      <GoogleDrivePickerModal
+        isOpen={isDriveModalOpen}
+        onClose={() => setIsDriveModalOpen(false)}
+        onInvoiceExtracted={handleInvoiceExtractedFromDrive}
+      />
     </div>
   );
 };
