@@ -4,6 +4,8 @@ import {
   CalendarEvent,
   FinanceItem,
   ClientProject,
+  InvoiceNF,
+  InvoiceStatus,
   NavView,
   Priority,
   Category,
@@ -19,6 +21,8 @@ import {
   deleteFinance,
   saveClient,
   deleteClient,
+  saveInvoice,
+  deleteInvoice,
   setLocal,
 } from './lib/supabase';
 import { fetchSheetExpenses, SheetFetchResult } from './lib/googleSheets';
@@ -32,6 +36,7 @@ import { HomeView } from './components/HomeView';
 import { AgendaView } from './components/AgendaView';
 import { TasksView } from './components/TasksView';
 import { FinanceView } from './components/FinanceView';
+import { InvoicesView } from './components/InvoicesView';
 import { WorkView } from './components/WorkView';
 import { Modals } from './components/Modals';
 import { Toast } from './components/Toast';
@@ -43,6 +48,7 @@ export default function App() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [finance, setFinance] = useState<FinanceItem[]>([]);
   const [clients, setClients] = useState<ClientProject[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceNF[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
@@ -63,7 +69,7 @@ export default function App() {
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
-    type: 'task' | 'event' | 'finance' | 'client' | null;
+    type: 'task' | 'event' | 'finance' | 'client' | 'invoice' | null;
     editItem: any;
   }>({
     isOpen: false,
@@ -92,6 +98,7 @@ export default function App() {
       setEvents(data.events);
       setFinance(data.finance);
       setClients(data.clients);
+      setInvoices(data.invoices || []);
       setIsSupabaseConnected(data.isConnected);
     } catch (err) {
       console.warn('Error loading initial app data:', err);
@@ -325,10 +332,34 @@ export default function App() {
   };
 
   const handleGenerateInvoice = async (client: ClientProject) => {
+    // 1. Generate Invoice NF in the invoices tab
+    const nextNfNumber = String(invoices.length + 1).padStart(3, '0');
+    const newInvoice: InvoiceNF = {
+      id: `nf-gen-${Date.now().toString(36)}`,
+      number: nextNfNumber,
+      clientName: client.clientName,
+      cnpjCpf: undefined,
+      description: client.projectTitle,
+      value: client.value,
+      taxRate: 6,
+      netValue: Math.round(client.value * 0.94 * 100) / 100,
+      issueDate: todayISO(),
+      dueDate: client.deadline || todayISO(),
+      status: client.status === 'concluido' ? 'paga' : 'emitida',
+      notes: `Faturado do projeto: ${client.projectTitle}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    const nextInvoices = [newInvoice, ...invoices];
+    setInvoices(nextInvoices);
+    setLocal('invoices', nextInvoices);
+    await saveInvoice(newInvoice);
+
+    // 2. Also record in finance module
     const newFin: FinanceItem = {
       id: `fin-client-${Date.now().toString(36)}`,
       type: 'income',
-      description: `${client.clientName} — ${client.projectTitle}`,
+      description: `NF #${nextNfNumber} — ${client.clientName} (${client.projectTitle})`,
       value: client.value,
       date: client.deadline || todayISO(),
       category: 'Trabalho',
@@ -339,7 +370,61 @@ export default function App() {
     setFinance(nextFinance);
     setLocal('finance', nextFinance);
     await saveFinance(newFin);
-    showToast(`Lançamento financeiro de ${formatMoney(client.value)} gerado no módulo Finanças! ✓`);
+    showToast(`NF #${nextNfNumber} gerada na aba de notas e integrada a Finanças! ✓`);
+  };
+
+  // Invoice Handlers
+  const handleSaveInvoice = async (invoiceData: Partial<InvoiceNF>) => {
+    const isEdit = !!invoiceData.id;
+    const newInv: InvoiceNF = {
+      id: invoiceData.id || `nf-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      number: invoiceData.number || '001',
+      clientName: invoiceData.clientName || 'Cliente',
+      cnpjCpf: invoiceData.cnpjCpf,
+      description: invoiceData.description || 'Serviços prestados',
+      value: invoiceData.value || 0,
+      taxRate: invoiceData.taxRate,
+      netValue: invoiceData.netValue,
+      issueDate: invoiceData.issueDate || todayISO(),
+      dueDate: invoiceData.dueDate,
+      paymentDate: invoiceData.paymentDate,
+      status: invoiceData.status || 'emitida',
+      notes: invoiceData.notes,
+      sheetLink: invoiceData.sheetLink,
+      createdAt: invoiceData.createdAt || new Date().toISOString(),
+    };
+
+    const nextInvoices = isEdit
+      ? invoices.map((inv) => (inv.id === newInv.id ? newInv : inv))
+      : [newInv, ...invoices];
+
+    setInvoices(nextInvoices);
+    setLocal('invoices', nextInvoices);
+    await saveInvoice(newInv);
+    showToast(isEdit ? `NF #${newInv.number} atualizada com sucesso ✓` : `NF #${newInv.number} emitida e cadastrada ✓`);
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    const nextInvoices = invoices.filter((i) => i.id !== id);
+    setInvoices(nextInvoices);
+    setLocal('invoices', nextInvoices);
+    await deleteInvoice(id);
+    showToast('Nota fiscal excluída');
+  };
+
+  const handleToggleInvoiceStatus = async (id: string, newStatus: InvoiceStatus) => {
+    const target = invoices.find((i) => i.id === id);
+    if (!target) return;
+    const updated: InvoiceNF = {
+      ...target,
+      status: newStatus,
+      paymentDate: newStatus === 'paga' ? (target.paymentDate || todayISO()) : undefined,
+    };
+    const nextInvoices = invoices.map((i) => (i.id === id ? updated : i));
+    setInvoices(nextInvoices);
+    setLocal('invoices', nextInvoices);
+    await saveInvoice(updated);
+    showToast(newStatus === 'paga' ? `NF #${updated.number} marcada como Paga ✓` : `NF #${updated.number} reaberta`);
   };
 
   // Global search filtering
@@ -372,8 +457,20 @@ export default function App() {
     );
   }, [clients, searchQuery]);
 
+  const filteredInvoices = useMemo(() => {
+    if (!searchQuery.trim()) return invoices;
+    const q = searchQuery.toLowerCase();
+    return invoices.filter((inv) =>
+      [inv.number, inv.clientName, inv.description, inv.cnpjCpf || '', inv.notes || '']
+        .join(' ')
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [invoices, searchQuery]);
+
   const pendingTasksCount = tasks.filter((t) => !t.done).length;
   const todayEventsCount = events.filter((e) => e.date === todayISO()).length;
+  const pendingInvoicesCount = invoices.filter((i) => i.status === 'emitida').length;
 
   return (
     <div className="min-h-screen bg-[#050b12] text-[#eef5fb] font-sans flex flex-col">
@@ -386,6 +483,7 @@ export default function App() {
         }}
         pendingTasksCount={pendingTasksCount}
         todayEventsCount={todayEventsCount}
+        pendingInvoicesCount={pendingInvoicesCount}
         isSupabaseConnected={isSupabaseConnected}
         isGcalConnected={isGcalConnected}
         onSyncAll={async () => {
@@ -448,6 +546,15 @@ export default function App() {
             />
           )}
 
+          {currentView === 'invoices' && (
+            <InvoicesView
+              invoices={filteredInvoices}
+              onOpenModal={(type, item) => setModalState({ isOpen: true, type, editItem: item || null })}
+              onDeleteInvoice={handleDeleteInvoice}
+              onToggleStatus={handleToggleInvoiceStatus}
+            />
+          )}
+
           {currentView === 'work' && (
             <WorkView
               clients={filteredClients}
@@ -469,6 +576,7 @@ export default function App() {
         onSaveEvent={handleSaveEvent}
         onSaveFinance={handleSaveFinance}
         onSaveClient={handleSaveClient}
+        onSaveInvoice={handleSaveInvoice}
         isGcalConnected={isGcalConnected}
       />
 

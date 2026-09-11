@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Task, CalendarEvent, FinanceItem, ClientProject, Priority, Category, FinanceType, ProjectStage } from '../types';
+import { Task, CalendarEvent, FinanceItem, ClientProject, InvoiceNF, InvoiceStatus, Priority, Category, FinanceType, ProjectStage } from '../types';
 import { todayISO, toISODate } from '../lib/formatters';
-import { X, CheckSquare, Calendar, DollarSign, Briefcase } from 'lucide-react';
+import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText } from 'lucide-react';
 
 interface ModalsProps {
   isOpen: boolean;
-  type: 'task' | 'event' | 'finance' | 'client' | null;
+  type: 'task' | 'event' | 'finance' | 'client' | 'invoice' | null;
   editItem: any | null;
   onClose: () => void;
   onSaveTask: (task: Partial<Task>) => void;
   onSaveEvent: (event: Partial<CalendarEvent>, syncToGcal: boolean) => void;
   onSaveFinance: (finance: Partial<FinanceItem>) => void;
   onSaveClient: (client: Partial<ClientProject>) => void;
+  onSaveInvoice?: (invoice: Partial<InvoiceNF>) => void;
   isGcalConnected: boolean;
 }
 
@@ -24,6 +25,7 @@ export const Modals: React.FC<ModalsProps> = ({
   onSaveEvent,
   onSaveFinance,
   onSaveClient,
+  onSaveInvoice,
   isGcalConnected,
 }) => {
   // Task form state
@@ -56,6 +58,19 @@ export const Modals: React.FC<ModalsProps> = ({
   const [clientDeadline, setClientDeadline] = useState('');
   const [clientContact, setClientContact] = useState('');
   const [clientNotes, setClientNotes] = useState('');
+
+  // Invoice form state
+  const [invNumber, setInvNumber] = useState('');
+  const [invClientName, setInvClientName] = useState('');
+  const [invCnpjCpf, setInvCnpjCpf] = useState('');
+  const [invDesc, setInvDesc] = useState('');
+  const [invValue, setInvValue] = useState('');
+  const [invTaxRate, setInvTaxRate] = useState('6');
+  const [invIssueDate, setInvIssueDate] = useState(todayISO());
+  const [invDueDate, setInvDueDate] = useState('');
+  const [invStatus, setInvStatus] = useState<InvoiceStatus>('emitida');
+  const [invNotes, setInvNotes] = useState('');
+  const [invSheetLink, setInvSheetLink] = useState('');
 
   // Pre-fill on edit
   useEffect(() => {
@@ -122,6 +137,32 @@ export const Modals: React.FC<ModalsProps> = ({
         setClientDeadline(new Date(Date.now() + 86400000 * 14).toISOString().slice(0, 10));
         setClientContact('');
         setClientNotes('');
+      }
+    } else if (type === 'invoice') {
+      if (editItem) {
+        setInvNumber(editItem.number || '');
+        setInvClientName(editItem.clientName || '');
+        setInvCnpjCpf(editItem.cnpjCpf || '');
+        setInvDesc(editItem.description || '');
+        setInvValue(editItem.value !== undefined ? String(editItem.value) : '');
+        setInvTaxRate(editItem.taxRate !== undefined ? String(editItem.taxRate) : '6');
+        setInvIssueDate(toISODate(editItem.issueDate) || todayISO());
+        setInvDueDate(toISODate(editItem.dueDate) || '');
+        setInvStatus(editItem.status || 'emitida');
+        setInvNotes(editItem.notes || '');
+        setInvSheetLink(editItem.sheetLink || '');
+      } else {
+        setInvNumber('');
+        setInvClientName('');
+        setInvCnpjCpf('');
+        setInvDesc('');
+        setInvValue('');
+        setInvTaxRate('6');
+        setInvIssueDate(todayISO());
+        setInvDueDate(new Date(Date.now() + 86400000 * 15).toISOString().slice(0, 10));
+        setInvStatus('emitida');
+        setInvNotes('');
+        setInvSheetLink('');
       }
     }
   }, [isOpen, type, editItem, isGcalConnected]);
@@ -192,6 +233,35 @@ export const Modals: React.FC<ModalsProps> = ({
     onClose();
   };
 
+  const handleSubmitInvoice = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invClientName.trim() || !invDesc.trim()) return;
+    const val = parseFloat(invValue) || 0;
+    const tax = parseFloat(invTaxRate) || 0;
+    const net = val > 0 ? val * (1 - tax / 100) : 0;
+
+    if (onSaveInvoice) {
+      onSaveInvoice({
+        id: editItem?.id,
+        number: invNumber.trim() || 'S/N',
+        clientName: invClientName.trim(),
+        cnpjCpf: invCnpjCpf.trim() || undefined,
+        description: invDesc.trim(),
+        value: val,
+        taxRate: tax,
+        netValue: Math.round(net * 100) / 100,
+        issueDate: invIssueDate || todayISO(),
+        dueDate: invDueDate || undefined,
+        paymentDate: invStatus === 'paga' ? (editItem?.paymentDate || todayISO()) : undefined,
+        status: invStatus,
+        notes: invNotes.trim() || undefined,
+        sheetLink: invSheetLink.trim() || undefined,
+        createdAt: editItem?.createdAt || new Date().toISOString(),
+      });
+    }
+    onClose();
+  };
+
   return (
     <div
       id="modal-backdrop"
@@ -208,11 +278,13 @@ export const Modals: React.FC<ModalsProps> = ({
             {type === 'event' && <Calendar className="text-amber-400" size={18} />}
             {type === 'finance' && <DollarSign className="text-emerald-400" size={18} />}
             {type === 'client' && <Briefcase className="text-purple-400" size={18} />}
+            {type === 'invoice' && <FileText className="text-blue-400" size={18} />}
             <h3 className="text-base font-bold text-white">
               {type === 'task' && (editItem ? 'Editar Tarefa' : 'Nova Tarefa')}
               {type === 'event' && (editItem ? 'Editar Compromisso' : 'Novo Compromisso')}
               {type === 'finance' && (editItem ? 'Editar Lançamento' : 'Novo Lançamento Financeiro')}
               {type === 'client' && (editItem ? 'Editar Projeto / Cliente' : 'Novo Projeto / Cliente')}
+              {type === 'invoice' && (editItem ? 'Editar Nota Fiscal Emitida' : 'Nova Nota Fiscal Emitida')}
             </h3>
           </div>
 
@@ -601,6 +673,180 @@ export const Modals: React.FC<ModalsProps> = ({
                 className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/20"
               >
                 Salvar Projeto
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Invoice (NF) Form */}
+        {type === 'invoice' && (
+          <form onSubmit={handleSubmitInvoice} className="space-y-3.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Número da NF</label>
+                <input
+                  type="text"
+                  required
+                  value={invNumber}
+                  onChange={(e) => setInvNumber(e.target.value)}
+                  placeholder="Ex.: 005 ou 2026/05"
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none font-mono"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[#91a5b8] mb-1 font-medium">Status da NF</label>
+                <select
+                  value={invStatus}
+                  onChange={(e) => setInvStatus(e.target.value as InvoiceStatus)}
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
+                >
+                  <option value="emitida">Emitida / A Receber (Pendente)</option>
+                  <option value="paga">Paga / Liquidada</option>
+                  <option value="cancelada">Cancelada</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Cliente / Tomador</label>
+                <input
+                  type="text"
+                  required
+                  value={invClientName}
+                  onChange={(e) => setInvClientName(e.target.value)}
+                  placeholder="Ex.: Nexus Tech Logistics"
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">CNPJ ou CPF (Opcional)</label>
+                <input
+                  type="text"
+                  value={invCnpjCpf}
+                  onChange={(e) => setInvCnpjCpf(e.target.value)}
+                  placeholder="00.000.000/0001-00"
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[#91a5b8] mb-1 font-medium">Descrição dos Serviços / Itens</label>
+              <input
+                type="text"
+                required
+                value={invDesc}
+                onChange={(e) => setInvDesc(e.target.value)}
+                placeholder="Ex.: Prestação de serviços de consultoria e desenvolvimento web"
+                className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Valor Bruto (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={invValue}
+                  onChange={(e) => setInvValue(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Impostos / Retenção (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={invTaxRate}
+                  onChange={(e) => setInvTaxRate(e.target.value)}
+                  placeholder="6.0"
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Valor Líquido Est.</label>
+                <div className="w-full bg-[#060e17] border border-[#1d3143] rounded-lg px-3 py-2 text-emerald-400 font-bold font-mono">
+                  {invValue ? (
+                    (parseFloat(invValue) * (1 - (parseFloat(invTaxRate) || 0) / 100)).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    })
+                  ) : (
+                    'R$ 0,00'
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Data de Emissão</label>
+                <input
+                  type="date"
+                  required
+                  value={invIssueDate}
+                  onChange={(e) => setInvIssueDate(e.target.value)}
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Data de Vencimento</label>
+                <input
+                  type="date"
+                  value={invDueDate}
+                  onChange={(e) => setInvDueDate(e.target.value)}
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[#91a5b8] mb-1 font-medium">Link do Documento / Planilha / Drive (Opcional)</label>
+              <input
+                type="url"
+                value={invSheetLink}
+                onChange={(e) => setInvSheetLink(e.target.value)}
+                placeholder="https://drive.google.com/... ou link da nota fiscal"
+                className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[#91a5b8] mb-1 font-medium">Observações / Chave da Nota</label>
+              <textarea
+                value={invNotes}
+                onChange={(e) => setInvNotes(e.target.value)}
+                placeholder="Instruções de pagamento, chave de acesso de 44 dígitos, banco..."
+                rows={2}
+                className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#183147]">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#b8cbe0] border border-[#28445b] font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/20"
+              >
+                Salvar Nota Fiscal
               </button>
             </div>
           </form>

@@ -10,6 +10,7 @@ import {
   Database,
   Cloud,
   RefreshCw,
+  FileText,
 } from 'lucide-react';
 import { NavView } from '../types';
 
@@ -18,13 +19,14 @@ interface TopBarProps {
   onSelectView: (view: NavView) => void;
   pendingTasksCount: number;
   todayEventsCount: number;
+  pendingInvoicesCount?: number;
   isSupabaseConnected: boolean;
   isGcalConnected?: boolean;
   onSyncAll: () => void;
   isSyncing: boolean;
   searchQuery: string;
   onSearchChange: (q: string) => void;
-  onOpenModal: (type: 'task' | 'event' | 'finance' | 'client') => void;
+  onOpenModal: (type: 'task' | 'event' | 'finance' | 'client' | 'invoice') => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -32,6 +34,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onSelectView,
   pendingTasksCount,
   todayEventsCount,
+  pendingInvoicesCount = 0,
   isSupabaseConnected,
   isGcalConnected = false,
   onSyncAll,
@@ -84,6 +87,13 @@ export const TopBar: React.FC<TopBarProps> = ({
       id: 'finance' as NavView,
       label: 'Finanças',
       icon: DollarSign,
+    },
+    {
+      id: 'invoices' as NavView,
+      label: 'NF Emitida',
+      icon: FileText,
+      badge: pendingInvoicesCount && pendingInvoicesCount > 0 ? `${pendingInvoicesCount}` : undefined,
+      badgeAlert: pendingInvoicesCount && pendingInvoicesCount > 0,
     },
     {
       id: 'work' as NavView,
@@ -229,6 +239,18 @@ export const TopBar: React.FC<TopBarProps> = ({
                   </button>
 
                   <div className="my-1 border-t border-[#1a3147]" />
+
+                  <button
+                    id="btn-add-invoice-dropdown"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      onOpenModal('invoice');
+                    }}
+                    className="w-full text-left px-3.5 py-2 text-xs text-[#dce7f2] hover:bg-[#12304b] flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <FileText size={14} className="text-cyan-400" />
+                    <span>Nova NF Emitida</span>
+                  </button>
 
                   <button
                     id="btn-add-client-dropdown"

@@ -49,7 +49,27 @@ export interface ClientProject {
   createdAt?: string;
 }
 
-export type NavView = 'home' | 'agenda' | 'tasks' | 'finance' | 'work';
+export type InvoiceStatus = 'emitida' | 'paga' | 'cancelada';
+
+export interface InvoiceNF {
+  id: string;
+  number: string;
+  clientName: string;
+  cnpjCpf?: string;
+  description: string;
+  value: number;
+  taxRate?: number;
+  netValue?: number;
+  issueDate: string; // YYYY-MM-DD
+  dueDate?: string; // YYYY-MM-DD
+  paymentDate?: string; // YYYY-MM-DD
+  status: InvoiceStatus;
+  notes?: string;
+  sheetLink?: string;
+  createdAt?: string;
+}
+
+export type NavView = 'home' | 'agenda' | 'tasks' | 'finance' | 'invoices' | 'work';
 
 export interface SheetExpensePoint {
   date: string;

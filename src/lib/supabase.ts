@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Task, CalendarEvent, FinanceItem, ClientProject } from '../types';
+import { Task, CalendarEvent, FinanceItem, ClientProject, InvoiceNF } from '../types';
 
 export const SUPABASE_URL = 'https://lejnasbocnqjbyecyudx.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_kfAWc8CtwymUsD5sNVNN9A_FJUKNke7';
@@ -85,6 +85,71 @@ const SEED_CLIENTS: ClientProject[] = [
   }
 ];
 
+const SEED_INVOICES: InvoiceNF[] = [
+  {
+    id: 'nf-001',
+    number: '001',
+    clientName: 'Studio Apex',
+    cnpjCpf: '32.485.912/0001-44',
+    description: 'Desenvolvimento Portal Institucional e Brand Guide',
+    value: 7800,
+    taxRate: 6,
+    netValue: 7332,
+    issueDate: '2026-08-15',
+    dueDate: '2026-08-20',
+    paymentDate: '2026-08-20',
+    status: 'paga',
+    notes: 'Liquidado via PIX empresarial. NF arquivada.',
+    createdAt: new Date('2026-08-15').toISOString(),
+  },
+  {
+    id: 'nf-002',
+    number: '002',
+    clientName: 'Nexus Tech Logistics',
+    cnpjCpf: '18.392.109/0001-88',
+    description: 'Consultoria Técnica & Desenvolvimento Dashboard Tempo Real',
+    value: 12500,
+    taxRate: 6,
+    netValue: 11750,
+    issueDate: '2026-09-01',
+    dueDate: '2026-09-20',
+    status: 'emitida',
+    notes: 'Boleto bancário gerado com vencimento dia 20/09.',
+    createdAt: new Date('2026-09-01').toISOString(),
+  },
+  {
+    id: 'nf-003',
+    number: '003',
+    clientName: 'Dra. Beatriz Cunha',
+    cnpjCpf: '45.109.832/0001-20',
+    description: 'Campanha de Tráfego Pago & Otimização de Conversão',
+    value: 3500,
+    taxRate: 6,
+    netValue: 3290,
+    issueDate: '2026-09-05',
+    dueDate: '2026-09-18',
+    status: 'emitida',
+    notes: 'Aguardando repasse conforme contrato mensal.',
+    createdAt: new Date('2026-09-05').toISOString(),
+  },
+  {
+    id: 'nf-004',
+    number: '004',
+    clientName: 'Drone Sesc 14 Bis',
+    cnpjCpf: '03.882.193/0001-77',
+    description: 'Captação aérea em 4K e pós-produção audiovisual',
+    value: 4200,
+    taxRate: 6,
+    netValue: 3948,
+    issueDate: '2026-09-10',
+    dueDate: '2026-09-11',
+    paymentDate: '2026-09-11',
+    status: 'paga',
+    notes: 'Pagamento confirmado e compensado hoje.',
+    createdAt: new Date('2026-09-10').toISOString(),
+  }
+];
+
 // LocalStorage helpers
 export function getLocal<T>(key: string, fallback: T): T {
   try {
@@ -108,14 +173,16 @@ export async function fetchAllData() {
   let events: CalendarEvent[] = getLocal('events', SEED_EVENTS);
   let finance: FinanceItem[] = getLocal('finance', SEED_FINANCE);
   let clients: ClientProject[] = getLocal('clients', SEED_CLIENTS);
+  let invoices: InvoiceNF[] = getLocal('invoices', SEED_INVOICES);
   let isConnected = false;
 
   try {
-    const [tRes, eRes, fRes, cRes] = await Promise.allSettled([
+    const [tRes, eRes, fRes, cRes, iRes] = await Promise.allSettled([
       supabase.from('tasks').select('*'),
       supabase.from('events').select('*'),
       supabase.from('finance').select('*'),
-      supabase.from('clients').select('*')
+      supabase.from('clients').select('*'),
+      supabase.from('invoices').select('*'),
     ]);
 
     if (tRes.status === 'fulfilled' && !tRes.value.error && tRes.value.data) {
@@ -148,11 +215,23 @@ export async function fetchAllData() {
         setLocal('clients', clients);
       }
     }
+
+    if (iRes.status === 'fulfilled' && !iRes.value.error && iRes.value.data) {
+      if (iRes.value.data.length > 0) {
+        invoices = (iRes.value.data as InvoiceNF[]).map(x => ({
+          ...x,
+          value: Number(x.value || 0),
+          taxRate: x.taxRate ? Number(x.taxRate) : undefined,
+          netValue: x.netValue ? Number(x.netValue) : undefined,
+        }));
+        setLocal('invoices', invoices);
+      }
+    }
   } catch (err) {
     console.warn('Supabase fetch error, using local/cached data:', err);
   }
 
-  return { tasks, events, finance, clients, isConnected };
+  return { tasks, events, finance, clients, invoices, isConnected };
 }
 
 export async function saveTask(task: Task) {
@@ -216,5 +295,21 @@ export async function deleteClient(id: string) {
     await supabase.from('clients').delete().eq('id', id);
   } catch (err) {
     console.warn('Failed to delete client in Supabase:', err);
+  }
+}
+
+export async function saveInvoice(invoice: InvoiceNF) {
+  try {
+    await supabase.from('invoices').upsert(invoice);
+  } catch (err) {
+    console.warn('Failed to upsert invoice in Supabase:', err);
+  }
+}
+
+export async function deleteInvoice(id: string) {
+  try {
+    await supabase.from('invoices').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Failed to delete invoice in Supabase:', err);
   }
 }
