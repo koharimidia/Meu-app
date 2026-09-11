@@ -27,7 +27,6 @@ import {
   requestCalendarAuth,
   addEventToGoogleCalendarRemote,
 } from './lib/googleCalendar';
-import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { HomeView } from './components/HomeView';
 import { AgendaView } from './components/AgendaView';
@@ -46,7 +45,6 @@ export default function App() {
   const [clients, setClients] = useState<ClientProject[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [isGcalConnected, setIsGcalConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -378,55 +376,46 @@ export default function App() {
   const todayEventsCount = events.filter((e) => e.date === todayISO()).length;
 
   return (
-    <div className="flex min-h-screen bg-[#050b12] text-[#eef5fb] font-sans">
-      {/* Sidebar */}
-      <Sidebar
+    <div className="min-h-screen bg-[#050b12] text-[#eef5fb] font-sans flex flex-col">
+      {/* Top Header with Brand, Navigation & Actions */}
+      <TopBar
         currentView={currentView}
         onSelectView={(v) => {
           setCurrentView(v);
-          setMobileMenuOpen(false);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         pendingTasksCount={pendingTasksCount}
         todayEventsCount={todayEventsCount}
         isSupabaseConnected={isSupabaseConnected}
         isGcalConnected={isGcalConnected}
-        mobileOpen={mobileMenuOpen}
-        onCloseMobile={() => setMobileMenuOpen(false)}
         onSyncAll={async () => {
           await Promise.all([loadAppData(), loadSheets()]);
           showToast('Todos os dados sincronizados com sucesso ✓');
         }}
         isSyncing={isSyncing || isSheetLoading}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onOpenModal={(type) => setModalState({ isOpen: true, type, editItem: null })}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 min-w-0 p-4 md:p-7 overflow-y-auto max-h-screen">
-        <div className="max-w-[1450px] mx-auto">
-          {/* Top Bar with Search & Add Dropdown */}
-          <TopBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+      <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 md:p-7">
+        {/* Active View */}
+        {currentView === 'home' && (
+          <HomeView
+            tasks={filteredTasks}
+            events={filteredEvents}
+            finance={filteredFinance}
+            onToggleTask={handleToggleTask}
+            onEditTask={(t) => setModalState({ isOpen: true, type: 'task', editItem: t })}
+            onDeleteTask={handleDeleteTask}
             onOpenModal={(type) => setModalState({ isOpen: true, type, editItem: null })}
-            onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onSelectDateAgenda={(dateStr) => {
+              setAgendaDateFilter(dateStr);
+              setCurrentView('agenda');
+            }}
           />
-
-          {/* Active View */}
-          {currentView === 'home' && (
-            <HomeView
-              tasks={filteredTasks}
-              events={filteredEvents}
-              finance={filteredFinance}
-              onToggleTask={handleToggleTask}
-              onEditTask={(t) => setModalState({ isOpen: true, type: 'task', editItem: t })}
-              onDeleteTask={handleDeleteTask}
-              onOpenModal={(type) => setModalState({ isOpen: true, type, editItem: null })}
-              onSelectDateAgenda={(dateStr) => {
-                setAgendaDateFilter(dateStr);
-                setCurrentView('agenda');
-              }}
-            />
-          )}
+        )}
 
           {currentView === 'agenda' && (
             <AgendaView
@@ -468,7 +457,6 @@ export default function App() {
               onGenerateInvoice={handleGenerateInvoice}
             />
           )}
-        </div>
       </main>
 
       {/* Unified Modals */}
