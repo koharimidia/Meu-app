@@ -32,6 +32,7 @@ interface InvoicesViewProps {
   onOpenModal: (type: 'invoice', item?: InvoiceNF | null) => void;
   onDeleteInvoice: (id: string) => void;
   onToggleStatus: (id: string, newStatus: InvoiceStatus) => void;
+  isPrivacyMode?: boolean;
 }
 
 export const InvoicesView: React.FC<InvoicesViewProps> = ({
@@ -39,6 +40,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
   onOpenModal,
   onDeleteInvoice,
   onToggleStatus,
+  isPrivacyMode = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | InvoiceStatus>('all');
@@ -395,7 +397,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
             <TrendingUp size={15} className="text-blue-400" />
           </div>
           <p className="text-xl lg:text-2xl font-black text-white tracking-tight">
-            {formatMoney(metrics.totalEmitido)}
+            {formatMoney(metrics.totalEmitido, isPrivacyMode)}
           </p>
           <p className="text-[11px] text-[#8194a8]">
             {metrics.countTotal} notas emitidas no total
@@ -409,7 +411,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
             <CheckCircle2 size={15} className="text-emerald-400" />
           </div>
           <p className="text-xl lg:text-2xl font-black text-emerald-400 tracking-tight">
-            {formatMoney(metrics.totalPago)}
+            {formatMoney(metrics.totalPago, isPrivacyMode)}
           </p>
           <p className="text-[11px] text-emerald-300/80 font-medium">
             {metrics.countPagas} notas liquidadas ({metrics.percentPaid}%)
@@ -423,7 +425,7 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
             <Clock size={15} className="text-amber-400" />
           </div>
           <p className="text-xl lg:text-2xl font-black text-amber-400 tracking-tight">
-            {formatMoney(metrics.totalPendente)}
+            {formatMoney(metrics.totalPendente, isPrivacyMode)}
           </p>
           <p className="text-[11px] text-amber-300/80 font-medium">
             {metrics.countPendentes} notas aguardando pagamento
@@ -751,11 +753,11 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({
                       {/* Value */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="font-bold text-white text-sm">
-                          {formatMoney(inv.value)}
+                          {formatMoney(inv.value, isPrivacyMode)}
                         </div>
                         {inv.netValue && inv.taxRate && (
                           <div className="text-[10px] text-[#6f8498]">
-                            Líq: {formatMoney(inv.netValue)} ({inv.taxRate}%)
+                            Líq: {formatMoney(inv.netValue, isPrivacyMode)} ({inv.taxRate}%)
                           </div>
                         )}
                       </td>

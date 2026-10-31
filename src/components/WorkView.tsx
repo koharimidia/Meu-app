@@ -9,6 +9,7 @@ interface WorkViewProps {
   onDeleteClient: (id: string) => void;
   onUpdateStage: (id: string, stage: ProjectStage) => void;
   onGenerateInvoice: (client: ClientProject) => void;
+  isPrivacyMode?: boolean;
 }
 
 const STAGES: { id: ProjectStage; label: string; color: string; bg: string; border: string }[] = [
@@ -25,6 +26,7 @@ export const WorkView: React.FC<WorkViewProps> = ({
   onDeleteClient,
   onUpdateStage,
   onGenerateInvoice,
+  isPrivacyMode = false,
 }) => {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [filterStage, setFilterStage] = useState<string>('');
@@ -97,7 +99,7 @@ export const WorkView: React.FC<WorkViewProps> = ({
           <div className="bg-[#0b1d2d] border border-[#183147] rounded-xl p-3.5">
             <small className="text-[11px] text-[#8194a8] font-medium block">Total em Pipeline Ativo</small>
             <strong className="text-xl block mt-1 font-bold text-emerald-400">
-              {formatMoney(totalPipelineValue)}
+              {formatMoney(totalPipelineValue, isPrivacyMode)}
             </strong>
           </div>
 
@@ -176,7 +178,7 @@ export const WorkView: React.FC<WorkViewProps> = ({
                             </p>
                           </div>
                           <span className="text-xs font-black text-emerald-400 shrink-0">
-                            {formatMoney(item.value)}
+                            {formatMoney(item.value, isPrivacyMode)}
                           </span>
                         </div>
 
@@ -287,7 +289,7 @@ export const WorkView: React.FC<WorkViewProps> = ({
                         </span>
                       </td>
                       <td className="py-3 px-3 text-[#a9b9c8]">{formatDateBR(item.deadline)}</td>
-                      <td className="py-3 px-3 font-bold text-emerald-400">{formatMoney(item.value)}</td>
+                      <td className="py-3 px-3 font-bold text-emerald-400">{formatMoney(item.value, isPrivacyMode)}</td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button

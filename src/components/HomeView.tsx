@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task, CalendarEvent, FinanceItem } from '../types';
 import { formatMoney, formatDateBR, formatRelativeDate, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
-import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar } from 'lucide-react';
+import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar, Eye, EyeOff } from 'lucide-react';
 
 interface HomeViewProps {
   tasks: Task[];
@@ -12,6 +12,8 @@ interface HomeViewProps {
   onDeleteTask: (id: string) => void;
   onOpenModal: (type: 'task' | 'event' | 'finance' | 'client') => void;
   onSelectDateAgenda?: (date: string) => void;
+  isPrivacyMode?: boolean;
+  onTogglePrivacyMode?: () => void;
 }
 
 const MONTH_NAMES = [
@@ -38,6 +40,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onDeleteTask,
   onOpenModal,
   onSelectDateAgenda,
+  isPrivacyMode = false,
+  onTogglePrivacyMode,
 }) => {
   const now = new Date();
   const [calYear, setCalYear] = useState<number>(now.getFullYear());
@@ -257,7 +261,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="lg:col-span-5 bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#14283a]">
-              <h3 className="text-sm font-bold text-white tracking-wide">💰 Resumo Financeiro</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white tracking-wide">💰 Resumo Financeiro</h3>
+                {onTogglePrivacyMode && (
+                  <button
+                    onClick={onTogglePrivacyMode}
+                    title={isPrivacyMode ? 'Mostrar valores' : 'Ocultar valores (Modo Privacidade)'}
+                    className={`p-1 rounded-md text-xs transition-colors cursor-pointer ${
+                      isPrivacyMode
+                        ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                        : 'bg-[#0f2336] text-[#8194a8] hover:text-white border border-[#1b344b]'
+                    }`}
+                  >
+                    {isPrivacyMode ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                )}
+              </div>
               <span className="text-[11px] text-[#8194a8]">Ano {currentYear}</span>
             </div>
 
@@ -266,28 +285,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
                 <small className="text-[10px] text-[#8194a8] block font-medium">Saldo Líquido</small>
                 <strong className={`text-sm block mt-1 font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {formatMoney(balance)}
+                  {formatMoney(balance, isPrivacyMode)}
                 </strong>
               </div>
 
               <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
                 <small className="text-[10px] text-[#8194a8] block font-medium">Receitas ({currentYear})</small>
                 <strong className="text-sm block mt-1 font-bold text-blue-400">
-                  {formatMoney(incomePaid)}
+                  {formatMoney(incomePaid, isPrivacyMode)}
                 </strong>
               </div>
 
               <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
                 <small className="text-[10px] text-[#8194a8] block font-medium">Despesas Pagas</small>
                 <strong className="text-sm block mt-1 font-bold text-rose-400">
-                  {formatMoney(expensePaid)}
+                  {formatMoney(expensePaid, isPrivacyMode)}
                 </strong>
               </div>
 
               <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
                 <small className="text-[10px] text-[#8194a8] block font-medium">A Receber</small>
                 <strong className="text-sm block mt-1 font-bold text-amber-400">
-                  {formatMoney(receivableTotal)}
+                  {formatMoney(receivableTotal, isPrivacyMode)}
                 </strong>
               </div>
             </div>
@@ -318,7 +337,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 >
                   <div className="w-16 h-16 rounded-full bg-[#0a1724] flex flex-col items-center justify-center text-center">
                     <span className="text-[9px] text-[#8194a8] font-medium">Total</span>
-                    <span className="text-[10px] font-bold text-white">{formatMoney(totalExpenseBreakdown)}</span>
+                    <span className="text-[10px] font-bold text-white">{formatMoney(totalExpenseBreakdown, isPrivacyMode)}</span>
                   </div>
                 </div>
               </div>
@@ -340,7 +359,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           <span className="text-[#9eb0c0] truncate">{cat}</span>
                         </div>
                         <span className="font-semibold text-white pl-2">
-                          {pct}% <span className="text-[10px] text-[#6f8498]">({formatMoney(val)})</span>
+                          {pct}% <span className="text-[10px] text-[#6f8498]">({formatMoney(val, isPrivacyMode)})</span>
                         </span>
                       </div>
                     );
@@ -399,7 +418,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div>
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#14283a]">
               <h3 className="text-sm font-bold text-white tracking-wide">💵 Contas a Receber</h3>
-              <span className="text-xs font-bold text-amber-400">{formatMoney(receivableTotal)}</span>
+              <span className="text-xs font-bold text-amber-400">{formatMoney(receivableTotal, isPrivacyMode)}</span>
             </div>
 
             {receivablesList.length === 0 ? (
@@ -417,7 +436,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <p className="font-semibold text-[#eef5fb] truncate">{rec.description}</p>
                       <span className="text-[10px] text-[#8194a8]">{formatDateBR(rec.date)}</span>
                     </div>
-                    <span className="font-bold text-amber-400 shrink-0">{formatMoney(rec.value)}</span>
+                    <span className="font-bold text-amber-400 shrink-0">{formatMoney(rec.value, isPrivacyMode)}</span>
                   </div>
                 ))}
               </div>

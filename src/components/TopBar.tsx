@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Search,
   Plus,
@@ -11,8 +11,12 @@ import {
   Cloud,
   RefreshCw,
   FileText,
+  Eye,
+  EyeOff,
+  TrendingUp,
 } from 'lucide-react';
 import { NavView } from '../types';
+import { formatMoney } from '../lib/formatters';
 
 interface TopBarProps {
   currentView: NavView;
@@ -27,6 +31,11 @@ interface TopBarProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onOpenModal: (type: 'task' | 'event' | 'finance' | 'client' | 'invoice') => void;
+  // Privacy and rich executive info
+  isPrivacyMode: boolean;
+  onTogglePrivacyMode: () => void;
+  balance?: number;
+  receivablesTotal?: number;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -42,6 +51,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   searchQuery,
   onSearchChange,
   onOpenModal,
+  isPrivacyMode,
+  onTogglePrivacyMode,
+  balance = 0,
+  receivablesTotal = 0,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -56,12 +69,22 @@ export const TopBar: React.FC<TopBarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const todayText = new Date().toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+  const now = new Date();
+  const greeting = useMemo(() => {
+    const hours = now.getHours();
+    if (hours >= 5 && hours < 12) return 'Bom dia';
+    if (hours >= 12 && hours < 18) return 'Boa tarde';
+    return 'Boa noite';
+  }, []);
+
+  const todayText = useMemo(() => {
+    return now.toLocaleDateString('pt-BR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }, []);
 
   const navItems = [
     {
@@ -103,58 +126,103 @@ export const TopBar: React.FC<TopBarProps> = ({
   ];
 
   return (
-    <header className="bg-[#07121d]/95 backdrop-blur-md border-b border-[#142638] sticky top-0 z-30 px-4 md:px-7 py-3.5 mb-6">
-      <div className="max-w-[1600px] mx-auto space-y-3.5">
-        {/* Upper Row: Brand & Title on left | Status, Search & Add on right */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Brand & Central Kohari Family */}
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="flex items-center gap-2 bg-[#0c1d2d] border border-[#1d354b] px-3 py-2 rounded-xl shrink-0 shadow-xs">
-              <span className="text-blue-500 font-black text-lg leading-none">◢</span>
-              <span className="font-black text-sm tracking-wider text-white">CENTRAL</span>
-              <span className="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+    <header className="bg-[#07121d]/95 backdrop-blur-md border-b border-[#142638] sticky top-0 z-30 px-3 sm:px-6 py-2.5 mb-4 shadow-lg transition-all">
+      <div className="max-w-[1600px] mx-auto space-y-2.5">
+        {/* Upper Row: Brand & Greeting | Executive Mini KPIs | Tools & Privacy */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Brand & Greeting */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-[#0c1d2d] border border-[#1d354b] px-2.5 py-1.5 rounded-lg shrink-0 shadow-xs">
+              <span className="text-blue-500 font-black text-base leading-none">◢</span>
+              <span className="font-black text-xs tracking-wider text-white">CENTRAL</span>
+              <span className="text-[8px] uppercase font-bold tracking-wider px-1 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 v0.3
               </span>
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                Central Kohari Family <span className="text-lg sm:text-xl">👋</span>
+              <h1 className="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+                Central Kohari Family <span className="text-sm">👋</span>
               </h1>
-              <p className="text-[11px] sm:text-xs text-[#8194a8] capitalize mt-0.5 font-medium flex items-center gap-2">
+              <p className="text-[10px] sm:text-[11px] text-[#8194a8] capitalize font-medium flex items-center gap-1.5">
+                <span className="text-cyan-400 font-semibold">{greeting}</span>
+                <span className="text-[#2b4155]">•</span>
                 <span>{todayText}</span>
-                <span className="text-[#2b4155] hidden sm:inline">•</span>
-                <span className="text-cyan-400 font-semibold hidden sm:inline">Produtividade & Finanças</span>
               </p>
             </div>
           </div>
 
-          {/* Right Tools: Status, Sync, Search, Add Dropdown */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Supabase Status */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0a1622] border border-[#1b3247] text-xs">
-              <Database size={13} className={isSupabaseConnected ? 'text-emerald-400' : 'text-amber-400'} />
-              <span className="text-[#8194a8] text-[11px] hidden sm:inline">Supabase:</span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                  isSupabaseConnected ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'
-                }`}
-              >
-                {isSupabaseConnected ? 'Online' : 'Local Cache'}
-              </span>
+          {/* Center: Executive Quick Info Strip (enriching the field with high-value data) */}
+          <div className="hidden lg:flex items-center gap-2 bg-[#091522] border border-[#193247] px-2.5 py-1 rounded-lg">
+            {/* Quick Balance */}
+            <div
+              onClick={() => onSelectView('finance')}
+              title="Clique para ir para Finanças"
+              className="flex items-center gap-1.5 pr-2.5 border-r border-[#193247] cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <TrendingUp size={13} className={balance >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
+              <div className="text-[10px]">
+                <span className="text-[#6d849a] block font-medium leading-none">Saldo</span>
+                <span className={`font-bold leading-tight ${balance >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  {formatMoney(balance, isPrivacyMode)}
+                </span>
+              </div>
             </div>
 
-            {/* Google Agenda Status */}
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0a1622] border border-[#1b3247] text-xs">
-              <Cloud size={13} className={isGcalConnected ? 'text-blue-400' : 'text-[#647b91]'} />
-              <span className="text-[#8194a8] text-[11px]">Agenda:</span>
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                  isGcalConnected ? 'bg-blue-500/15 text-blue-300' : 'bg-[#122334] text-[#8194a8]'
-                }`}
-              >
-                {isGcalConnected ? 'Sync' : 'Offline'}
-              </span>
+            {/* Quick Receivables */}
+            <div
+              onClick={() => onSelectView('invoices')}
+              title="Clique para ver Notas Fiscais e Recebíveis"
+              className="flex items-center gap-1.5 pr-2.5 border-r border-[#193247] cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <FileText size={13} className="text-amber-400" />
+              <div className="text-[10px]">
+                <span className="text-[#6d849a] block font-medium leading-none">A Receber</span>
+                <span className="font-bold text-amber-300 leading-tight">
+                  {formatMoney(receivablesTotal, isPrivacyMode)}
+                </span>
+              </div>
             </div>
+
+            {/* Supabase status badge */}
+            <div className="flex items-center gap-1.5 pr-2 border-r border-[#193247] text-[10px] text-[#8194a8]">
+              <Database size={11} className={isSupabaseConnected ? 'text-emerald-400' : 'text-amber-400'} />
+              <span>{isSupabaseConnected ? 'Online' : 'Local'}</span>
+            </div>
+
+            {/* Google Agenda badge */}
+            <div className="flex items-center gap-1.5 text-[10px] text-[#8194a8]">
+              <Cloud size={11} className={isGcalConnected ? 'text-blue-400' : 'text-[#647b91]'} />
+              <span>{isGcalConnected ? 'Agenda Sync' : 'Agenda Off'}</span>
+            </div>
+          </div>
+
+          {/* Right Tools: Privacy Button, Sync, Search, Add Dropdown */}
+          <div className="flex items-center gap-2">
+            {/* Privacy Mode Toggle Button (Direct requested feature) */}
+            <button
+              id="btn-toggle-privacy"
+              onClick={onTogglePrivacyMode}
+              title={
+                isPrivacyMode
+                  ? 'Modo Privacidade ativo (valores mascarados). Clique para mostrar valores.'
+                  : 'Ocultar valores financeiros (Modo Privacidade)'
+              }
+              aria-label="Alternar visualização de valores financeiros"
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isPrivacyMode
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-xs shadow-amber-500/20 ring-1 ring-amber-500/30'
+                  : 'bg-[#0a1622] hover:bg-[#12283c] border-[#1b3247] text-[#9bb0c4] hover:text-white'
+              }`}
+            >
+              {isPrivacyMode ? (
+                <EyeOff size={14} className="text-amber-400 shrink-0" />
+              ) : (
+                <Eye size={14} className="text-[#8194a8] shrink-0" />
+              )}
+              <span className="text-[11px] hidden sm:inline">
+                {isPrivacyMode ? 'Valores Ocultos' : 'Ocultar Valores'}
+              </span>
+            </button>
 
             {/* Sync Button */}
             <button
@@ -165,24 +233,24 @@ export const TopBar: React.FC<TopBarProps> = ({
               className="px-2.5 py-1.5 rounded-lg bg-[#0a1622] hover:bg-[#12283c] text-[#9bb0c4] hover:text-white border border-[#1b3247] text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw size={13} className={isSyncing ? 'animate-spin text-blue-400' : ''} />
-              <span className="text-[11px] hidden sm:inline">{isSyncing ? 'Sincronizando...' : 'Atualizar Dados'}</span>
+              <span className="text-[11px] hidden md:inline">{isSyncing ? 'Sincronizando...' : 'Atualizar'}</span>
             </button>
 
             {/* Search Bar */}
-            <div className="relative w-48 sm:w-60 lg:w-72">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8194a8]" />
+            <div className="relative w-36 sm:w-48 lg:w-60">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8194a8]" />
               <input
                 id="global-search-input"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Buscar tarefas, agenda, finanças..."
-                className="w-full pl-8 pr-4 py-1.5 bg-[#0a1622] border border-[#1b3247] rounded-lg text-xs text-[#dce7f2] placeholder-[#6f8498] focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="Buscar tarefas, finanças..."
+                className="w-full pl-7 pr-3 py-1 bg-[#0a1622] border border-[#1b3247] rounded-lg text-xs text-[#dce7f2] placeholder-[#6f8498] focus:outline-none focus:border-blue-500 transition-colors"
               />
               {searchQuery && (
                 <button
                   onClick={() => onSearchChange('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8194a8] hover:text-white text-xs"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8194a8] hover:text-white text-xs"
                 >
                   ✕
                 </button>
@@ -194,14 +262,14 @@ export const TopBar: React.FC<TopBarProps> = ({
               <button
                 id="btn-main-add"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-md shadow-blue-600/20 transition-colors shrink-0 cursor-pointer"
+                className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-md shadow-blue-600/20 transition-colors shrink-0 cursor-pointer"
               >
-                <Plus size={15} />
-                <span>Adicionar</span>
+                <Plus size={14} />
+                <span className="hidden sm:inline">Adicionar</span>
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-[#0a1622] border border-[#284258] rounded-xl shadow-2xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 mt-2 w-56 bg-[#0a1622] border border-[#284258] rounded-xl shadow-2xl py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
                   <button
                     id="btn-add-task-dropdown"
                     onClick={() => {
@@ -269,8 +337,8 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         </div>
 
-        {/* Navigation Row - EXACTLY BELOW "Central Kohari Family" */}
-        <nav className="flex items-center gap-2 pt-2.5 border-t border-[#142638] overflow-x-auto pb-1 no-scrollbar">
+        {/* Navigation Tabs - Sleek, compact and scrollbar-hidden */}
+        <nav className="flex items-center gap-1.5 pt-2 border-t border-[#142638] overflow-x-auto pb-0.5 no-scrollbar">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -279,20 +347,20 @@ export const TopBar: React.FC<TopBarProps> = ({
                 key={item.id}
                 id={`nav-btn-${item.id}`}
                 onClick={() => onSelectView(item.id)}
-                className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                   isActive
-                    ? 'bg-[#12304b] text-white shadow-sm shadow-blue-500/20 border border-blue-500/40 ring-1 ring-blue-400/20'
+                    ? 'bg-[#12304b] text-white shadow-xs shadow-blue-500/20 border border-blue-500/40 ring-1 ring-blue-400/20'
                     : 'bg-[#0a1622]/80 text-[#9bb0c4] hover:bg-[#112437] hover:text-white border border-[#1b3043]'
                 }`}
               >
                 <Icon
-                  size={15}
-                  className={`transition-colors ${isActive ? 'text-blue-400' : 'text-[#8194a8]'}`}
+                  size={14}
+                  className={`transition-colors shrink-0 ${isActive ? 'text-blue-400' : 'text-[#8194a8]'}`}
                 />
                 <span>{item.label}</span>
                 {item.badge && (
                   <span
-                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
                       item.badgeAlert
                         ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                         : 'bg-[#142d44] text-blue-300 border border-blue-500/20'

@@ -1,8 +1,16 @@
 import { Category, Priority } from '../types';
 
-export function formatMoney(val: number | string | undefined): string {
+export function formatMoney(val: number | string | undefined, isPrivate: boolean = false): string {
+  if (isPrivate) {
+    return 'R$ ••••••';
+  }
   const num = Number(val || 0);
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+export function maskPrivate(val: string | number | undefined, isPrivate: boolean = false): string {
+  if (isPrivate) return '••••';
+  return String(val ?? '');
 }
 
 export function todayISO(): string {

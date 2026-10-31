@@ -82,12 +82,33 @@ export default function App() {
     type: 'success',
   });
 
+  const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('kohari_privacy_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
     setTimeout(() => {
       setToast((prev) => (prev.message === message ? { message: null, type: 'success' } : prev));
     }, 2800);
   }, []);
+
+  const togglePrivacyMode = useCallback(() => {
+    setIsPrivacyMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('kohari_privacy_mode', String(next));
+      } catch (err) {
+        console.warn('Could not save privacy mode in localStorage', err);
+      }
+      showToast(next ? 'Modo Privacidade ativado: valores ocultos' : 'Modo Privacidade desativado: valores visíveis', 'info');
+      return next;
+    });
+  }, [showToast]);
 
   // Initial data loading
   const loadAppData = useCallback(async () => {
@@ -472,6 +493,26 @@ export default function App() {
   const todayEventsCount = events.filter((e) => e.date === todayISO()).length;
   const pendingInvoicesCount = invoices.filter((i) => i.status === 'emitida').length;
 
+  const currentYear = new Date().getFullYear();
+  const isPaid = (status: string) => ['paid', 'pago', 'recebido', 'received'].includes((status || '').toLowerCase().trim());
+  const isPending = (status: string) => ['pending', 'pendente', 'a receber'].includes((status || '').toLowerCase().trim());
+
+  const balance = useMemo(() => {
+    const incomePaid = finance
+      .filter((f) => f.type === 'income' && isPaid(f.status) && (f.date || '').slice(0, 4) >= `${currentYear}`)
+      .reduce((acc, f) => acc + Number(f.value || 0), 0);
+    const expensePaid = finance
+      .filter((f) => f.type === 'expense' && isPaid(f.status))
+      .reduce((acc, f) => acc + Number(f.value || 0), 0);
+    return incomePaid - expensePaid;
+  }, [finance, currentYear]);
+
+  const receivablesTotal = useMemo(() => {
+    return finance
+      .filter((f) => f.type === 'income' && isPending(f.status))
+      .reduce((acc, f) => acc + Number(f.value || 0), 0);
+  }, [finance]);
+
   return (
     <div className="min-h-screen bg-[#050b12] text-[#eef5fb] font-sans flex flex-col">
       {/* Top Header with Brand, Navigation & Actions */}
@@ -494,6 +535,10 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onOpenModal={(type) => setModalState({ isOpen: true, type, editItem: null })}
+        isPrivacyMode={isPrivacyMode}
+        onTogglePrivacyMode={togglePrivacyMode}
+        balance={balance}
+        receivablesTotal={receivablesTotal}
       />
 
       {/* Main Content Area */}
@@ -512,6 +557,8 @@ export default function App() {
               setAgendaDateFilter(dateStr);
               setCurrentView('agenda');
             }}
+            isPrivacyMode={isPrivacyMode}
+            onTogglePrivacyMode={togglePrivacyMode}
           />
         )}
 
@@ -543,6 +590,8 @@ export default function App() {
               finance={filteredFinance}
               onOpenModal={(type, item) => setModalState({ isOpen: true, type, editItem: item || null })}
               onDeleteFinance={handleDeleteFinance}
+              isPrivacyMode={isPrivacyMode}
+              onTogglePrivacyMode={togglePrivacyMode}
             />
           )}
 
@@ -552,6 +601,7 @@ export default function App() {
               onOpenModal={(type, item) => setModalState({ isOpen: true, type, editItem: item || null })}
               onDeleteInvoice={handleDeleteInvoice}
               onToggleStatus={handleToggleInvoiceStatus}
+              isPrivacyMode={isPrivacyMode}
             />
           )}
 
@@ -562,6 +612,7 @@ export default function App() {
               onDeleteClient={handleDeleteClient}
               onUpdateStage={handleUpdateClientStage}
               onGenerateInvoice={handleGenerateInvoice}
+              isPrivacyMode={isPrivacyMode}
             />
           )}
       </main>

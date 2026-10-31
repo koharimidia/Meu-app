@@ -1,18 +1,32 @@
 import React, { useState } from 'react';
 import { FinanceItem } from '../types';
 import { formatMoney, formatDateBR, toISODate } from '../lib/formatters';
-import { DollarSign, Plus, Trash2, Edit2, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2 } from 'lucide-react';
+import {
+  DollarSign,
+  Plus,
+  Trash2,
+  Edit2,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
 interface FinanceViewProps {
   finance: FinanceItem[];
   onOpenModal: (type: 'finance', item?: FinanceItem) => void;
   onDeleteFinance: (id: string) => void;
+  isPrivacyMode?: boolean;
+  onTogglePrivacyMode?: () => void;
 }
 
 export const FinanceView: React.FC<FinanceViewProps> = ({
   finance,
   onOpenModal,
   onDeleteFinance,
+  isPrivacyMode = false,
+  onTogglePrivacyMode,
 }) => {
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -35,10 +49,6 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
   const receivableTotal = finance
     .filter((f) => f.type === 'income' && isPending(f.status))
-    .reduce((acc, f) => acc + Number(f.value || 0), 0);
-
-  const payableTotal = finance
-    .filter((f) => f.type === 'expense' && isPending(f.status))
     .reduce((acc, f) => acc + Number(f.value || 0), 0);
 
   // Filter list
@@ -76,18 +86,35 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
       {/* Financial KPI Banner */}
       <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#14283a]">
-          <div>
-            <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-              <DollarSign size={20} className="text-emerald-400" />
-              <span>Controle Financeiro</span>
-            </h2>
-            <p className="text-xs text-[#8194a8] mt-0.5">Fluxo de caixa, recebíveis e conciliação</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+                <DollarSign size={20} className="text-emerald-400" />
+                <span>Controle Financeiro</span>
+              </h2>
+              <p className="text-xs text-[#8194a8] mt-0.5">Fluxo de caixa, recebíveis e conciliação</p>
+            </div>
+
+            {onTogglePrivacyMode && (
+              <button
+                onClick={onTogglePrivacyMode}
+                title={isPrivacyMode ? 'Mostrar valores' : 'Ocultar valores (Modo Privacidade)'}
+                className={`px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  isPrivacyMode
+                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                    : 'bg-[#0f2336] text-[#8194a8] hover:text-white border border-[#1b344b]'
+                }`}
+              >
+                {isPrivacyMode ? <EyeOff size={13} /> : <Eye size={13} />}
+                <span className="hidden sm:inline">{isPrivacyMode ? 'Oculto' : 'Discreto'}</span>
+              </button>
+            )}
           </div>
 
           <button
             id="btn-finance-new-entry"
             onClick={() => onOpenModal('finance')}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-colors shadow-md shadow-blue-600/20 self-start sm:self-auto"
+            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-colors shadow-md shadow-blue-600/20 self-start sm:self-auto cursor-pointer"
           >
             <Plus size={14} />
             <span>Novo Lançamento</span>
@@ -104,7 +131,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               </span>
             </div>
             <strong className={`text-xl block mt-2 font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {formatMoney(balance)}
+              {formatMoney(balance, isPrivacyMode)}
             </strong>
           </div>
 
@@ -116,7 +143,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               </span>
             </div>
             <strong className="text-xl block mt-2 font-bold text-blue-400">
-              {formatMoney(incomePaid)}
+              {formatMoney(incomePaid, isPrivacyMode)}
             </strong>
           </div>
 
@@ -128,7 +155,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               </span>
             </div>
             <strong className="text-xl block mt-2 font-bold text-rose-400">
-              {formatMoney(expensePaid)}
+              {formatMoney(expensePaid, isPrivacyMode)}
             </strong>
           </div>
 
@@ -140,7 +167,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               </span>
             </div>
             <strong className="text-xl block mt-2 font-bold text-amber-400">
-              {formatMoney(receivableTotal)}
+              {formatMoney(receivableTotal, isPrivacyMode)}
             </strong>
           </div>
         </div>
@@ -157,7 +184,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               <div className="flex items-center bg-[#0b1a29] p-0.5 rounded-lg border border-[#20374b] text-xs">
                 <button
                   onClick={() => setTypeFilter('all')}
-                  className={`px-2 py-1 rounded font-medium transition-colors ${
+                  className={`px-2 py-1 rounded font-medium transition-colors cursor-pointer ${
                     typeFilter === 'all' ? 'bg-[#12304b] text-white' : 'text-[#8194a8] hover:text-white'
                   }`}
                 >
@@ -165,7 +192,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 </button>
                 <button
                   onClick={() => setTypeFilter('income')}
-                  className={`px-2 py-1 rounded font-medium transition-colors ${
+                  className={`px-2 py-1 rounded font-medium transition-colors cursor-pointer ${
                     typeFilter === 'income' ? 'bg-emerald-600/30 text-emerald-300' : 'text-[#8194a8] hover:text-white'
                   }`}
                 >
@@ -173,7 +200,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 </button>
                 <button
                   onClick={() => setTypeFilter('expense')}
-                  className={`px-2 py-1 rounded font-medium transition-colors ${
+                  className={`px-2 py-1 rounded font-medium transition-colors cursor-pointer ${
                     typeFilter === 'expense' ? 'bg-rose-600/30 text-rose-300' : 'text-[#8194a8] hover:text-white'
                   }`}
                 >
@@ -244,20 +271,20 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                           </span>
                         </td>
                         <td className={`py-2.5 px-3 font-bold ${isInc ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {isInc ? '+' : '-'} {formatMoney(item.value)}
+                          {isInc ? '+' : '-'} {formatMoney(item.value, isPrivacyMode)}
                         </td>
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => onOpenModal('finance', item)}
-                              className="p-1 rounded bg-[#13283a] hover:bg-[#1a3851] text-[#b9cad9] hover:text-white transition-colors"
+                              className="p-1 rounded bg-[#13283a] hover:bg-[#1a3851] text-[#b9cad9] hover:text-white transition-colors cursor-pointer"
                               title="Editar"
                             >
                               <Edit2 size={12} />
                             </button>
                             <button
                               onClick={() => onDeleteFinance(item.id)}
-                              className="p-1 rounded bg-[#13283a] hover:bg-rose-500/20 text-[#b9cad9] hover:text-rose-400 transition-colors"
+                              className="p-1 rounded bg-[#13283a] hover:bg-rose-500/20 text-[#b9cad9] hover:text-rose-400 transition-colors cursor-pointer"
                               title="Excluir"
                             >
                               <Trash2 size={12} />
@@ -279,7 +306,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
           <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#14283a]">
               <h3 className="text-sm font-bold text-white tracking-wide">💵 A Receber</h3>
-              <span className="text-xs font-bold text-amber-400">{formatMoney(receivableTotal)}</span>
+              <span className="text-xs font-bold text-amber-400">{formatMoney(receivableTotal, isPrivacyMode)}</span>
             </div>
 
             {receivables.length === 0 ? (
@@ -295,7 +322,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                       <p className="font-semibold text-white truncate">{r.description}</p>
                       <span className="text-[10px] text-[#8194a8]">Venc.: {formatDateBR(r.date)}</span>
                     </div>
-                    <strong className="text-amber-400 shrink-0 font-bold">{formatMoney(r.value)}</strong>
+                    <strong className="text-amber-400 shrink-0 font-bold">{formatMoney(r.value, isPrivacyMode)}</strong>
                   </div>
                 ))}
               </div>
@@ -303,7 +330,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
             <button
               onClick={() => onOpenModal('finance')}
-              className="w-full mt-3 py-2 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#b8cbe0] border border-[#28445b] text-xs font-semibold transition-colors"
+              className="w-full mt-3 py-2 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#b8cbe0] border border-[#28445b] text-xs font-semibold transition-colors cursor-pointer"
             >
               + Cadastrar Recebimento
             </button>
@@ -313,7 +340,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
           <div className="bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#14283a]">
               <h3 className="text-sm font-bold text-white tracking-wide">📊 Despesas por Categoria</h3>
-              <span className="text-xs font-bold text-rose-400">{formatMoney(totalExpenses)}</span>
+              <span className="text-xs font-bold text-rose-400">{formatMoney(totalExpenses, isPrivacyMode)}</span>
             </div>
 
             <div className="flex items-center justify-center my-3">
@@ -339,7 +366,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               >
                 <div className="w-16 h-16 rounded-full bg-[#0a1724] flex flex-col items-center justify-center text-center">
                   <span className="text-[9px] text-[#8194a8]">Total</span>
-                  <span className="text-[10px] font-bold text-white">{formatMoney(totalExpenses)}</span>
+                  <span className="text-[10px] font-bold text-white">{formatMoney(totalExpenses, isPrivacyMode)}</span>
                 </div>
               </div>
             </div>
@@ -357,7 +384,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                       <span className="text-[#9eb0c0] truncate">{cat}</span>
                     </div>
                     <span className="font-semibold text-white pl-2">
-                      {pct}% <span className="text-[10px] text-[#6f8498]">({formatMoney(val)})</span>
+                      {pct}% <span className="text-[10px] text-[#6f8498]">({formatMoney(val, isPrivacyMode)})</span>
                     </span>
                   </div>
                 );
