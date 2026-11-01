@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Task, CalendarEvent, FinanceItem } from '../types';
 import { formatMoney, formatDateBR, formatRelativeDate, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
 import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar, Eye, EyeOff, Edit2, Trash2, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { DailyMotivationBanner } from './DailyMotivationBanner';
 
 interface HomeViewProps {
   tasks: Task[];
@@ -157,6 +158,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="space-y-5">
+      {/* Coluna única com 3 linhas para sincronizar mensagens positivas ou motivacionais do dia */}
+      <DailyMotivationBanner />
+
       {/* Upper Grid: Prioridades da Semana (reduced to 4 cols) & Resumo Financeiro (expanded to 8 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* 1. Week's Priorities (Card span 4 - reduzido na metade) */}
