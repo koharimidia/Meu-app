@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação para o Modo de Privacidade Financeira (ocultar valores com asteriscos mantendo o layout, com botão na barra superior e persistência no navegador).",
-  "updatedAt":  "2026-10-31T23:31:44.892106455Z",
+  "summary":  "Plano revisado conforme anotação na captura de tela: remoção da aba de cursos no topo do modal de lançamento financeiro e inclusão das abas de seleção de categoria (Doação, Custos de Trabalho e Cursos) diretamente no campo de categoria do formulário.",
+  "updatedAt":  "2026-11-01T01:25:32.310582202Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

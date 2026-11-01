@@ -63,11 +63,18 @@ export function formatRelativeDate(d: string | undefined): { text: string; isPas
 
 export const CATEGORY_COLORS: Record<Category, { bg: string; text: string; border: string; hex: string }> = {
   Trabalho: { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30', hex: '#2787ff' },
+  'Custos de Trabalho': { bg: 'bg-indigo-500/15', text: 'text-indigo-400', border: 'border-indigo-500/30', hex: '#6366f1' },
+  Cursos: { bg: 'bg-cyan-500/15', text: 'text-cyan-400', border: 'border-cyan-500/30', hex: '#06b6d4' },
+  Doação: { bg: 'bg-pink-500/15', text: 'text-pink-400', border: 'border-pink-500/30', hex: '#ec4899' },
   Pessoal: { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30', hex: '#ffb642' },
   Esporte: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30', hex: '#28d7aa' },
   Família: { bg: 'bg-rose-500/15', text: 'text-rose-400', border: 'border-rose-500/30', hex: '#ff6683' },
   Financeiro: { bg: 'bg-purple-500/15', text: 'text-purple-400', border: 'border-purple-500/30', hex: '#a47aff' },
-  Cursos: { bg: 'bg-cyan-500/15', text: 'text-cyan-400', border: 'border-cyan-500/30', hex: '#06b6d4' },
+  Alimentação: { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30', hex: '#f97316' },
+  Transporte: { bg: 'bg-sky-500/15', text: 'text-sky-400', border: 'border-sky-500/30', hex: '#0ea5e9' },
+  Moradia: { bg: 'bg-teal-500/15', text: 'text-teal-400', border: 'border-teal-500/30', hex: '#14b8a6' },
+  Lazer: { bg: 'bg-violet-500/15', text: 'text-violet-400', border: 'border-violet-500/30', hex: '#8b5cf6' },
+  Outros: { bg: 'bg-slate-500/15', text: 'text-slate-400', border: 'border-slate-500/30', hex: '#64748b' },
 };
 
 export const PRIORITY_STYLES: Record<Priority, { label: string; text: string; bg: string }> = {

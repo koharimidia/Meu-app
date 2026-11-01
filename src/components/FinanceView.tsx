@@ -44,6 +44,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 }) => {
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense' | 'courses' | 'recurring'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [periodFilter, setPeriodFilter] = useState<string>('current_and_next');
 
   const isPaid = (status: string) => ['paid', 'pago', 'recebido', 'received'].includes((status || '').toLowerCase().trim());
@@ -176,6 +177,15 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     filtered = filtered.filter((f) => isPaid(f.status));
   } else if (statusFilter === 'pending') {
     filtered = filtered.filter((f) => isPending(f.status));
+  }
+
+  // Filter list by category
+  if (categoryFilter) {
+    if (categoryFilter === 'Cursos') {
+      filtered = filtered.filter((f) => f.category === 'Cursos' || !!f.is_course);
+    } else {
+      filtered = filtered.filter((f) => f.category === categoryFilter);
+    }
   }
 
   // Summary for current filtered period
@@ -407,11 +417,30 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 </button>
               </div>
 
+              {/* Category Filter */}
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="bg-[#0b1a29] border border-[#20374b] text-[#dce7f2] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500 cursor-pointer"
+              >
+                <option value="">Todas categorias</option>
+                <option value="Doação">🤲 Doação</option>
+                <option value="Custos de Trabalho">💼 Custos de Trabalho</option>
+                <option value="Cursos">🎓 Cursos</option>
+                <option value="Trabalho">Trabalho (Geral)</option>
+                <option value="Alimentação">Alimentação</option>
+                <option value="Transporte">Transporte</option>
+                <option value="Moradia">Moradia</option>
+                <option value="Esporte">Esporte</option>
+                <option value="Lazer">Lazer</option>
+                <option value="Outros">Outros</option>
+              </select>
+
               {/* Status Filter */}
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-[#0b1a29] border border-[#20374b] text-[#dce7f2] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500"
+                className="bg-[#0b1a29] border border-[#20374b] text-[#dce7f2] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500 cursor-pointer"
               >
                 <option value="">Todos status</option>
                 <option value="paid">Pagos / Recebidos</option>
@@ -559,7 +588,24 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                             {isInc ? 'Entrada' : 'Despesa'}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-[#9bb0c4]">{item.category}</td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+                              item.category === 'Doação'
+                                ? 'bg-pink-500/15 text-pink-300 border-pink-500/30'
+                                : item.category === 'Custos de Trabalho'
+                                ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                                : item.category === 'Cursos' || item.is_course
+                                ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                                : 'bg-[#102233] text-[#9bb0c4] border-[#1e3850]'
+                            }`}
+                          >
+                            {item.category === 'Doação' && '🤲'}
+                            {item.category === 'Custos de Trabalho' && '💼'}
+                            {(item.category === 'Cursos' || item.is_course) && '🎓'}
+                            <span>{item.category || 'Geral'}</span>
+                          </span>
+                        </td>
                         <td className="py-2.5 px-3">
                           <span
                             className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${

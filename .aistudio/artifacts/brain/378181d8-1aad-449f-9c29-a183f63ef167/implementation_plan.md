@@ -1,54 +1,67 @@
-# Modo de Privacidade do Resumo Financeiro
+# Revisão: Abas de Categoria no Formulário Financeiro e Remoção da Aba de Cursos no Topo
 
-Implementação de um botão e modo de privacidade global no topo da aplicação para ocultar/mascarar valores e dados monetários com asteriscos (`R$ ••••••`), preservando a estrutura dos cards, gráficos e tabelas, com persistência automática no navegador (`localStorage`).
+Ajuste do modal de novos lançamentos conforme anotação na imagem: remoção da barra de alternância do topo (`[ Lançamento Geral ]` / `[ Aba de Cursos ]`) e inclusão das abas de categoria diretamente na seção de **Categoria** do formulário para **Doação**, **Custos de Trabalho** e **Cursos**.
 
 ---
 
 ## Revisão do Usuário & Decisões Confirmadas
 
 > [!IMPORTANT]
-> **Decisões confirmadas nas perguntas de esclarecimento:**
-> - **Formato da visualização oculta**: Mascarar os valores monetários com asteriscos elegantes (`R$ ••••••` / `••••`) sem desmontar ou recolher os cards e layouts, mantendo a harmonia visual.
-> - **Posicionamento e Persistência**: Botão de alternância com ícone de olho (`Eye` / `EyeOff`) disponível na barra superior (`TopBar`) para acesso em qualquer tela, sincronizado e salvo no `localStorage` do navegador para manter o estado entre recarregamentos, com atalho complementar no cabeçalho do card de Resumo Financeiro na Home.
+> **Modificações solicitadas na captura de tela:**
+> - **Remover aba de cursos do topo**: Eliminar completamente os botões de alternância `[ Lançamento Geral ]` e `[ 🎓 Aba de Cursos ]` localizados no cabeçalho do modal. O modal volta a ter um formulário único, enxuto e direto.
+> - **Abas de categoria na seção de Categoria**: A escolha de categoria terá abas/botões visuais diretos no próprio formulário:
+>   - `[ 🤲 Doação ]`
+>   - `[ 💼 Custos de Trabalho ]`
+>   - `[ 🎓 Cursos ]`
+>   - `[ ▾ Outras Categorias ]` (Alimentação, Transporte, Moradia, etc.)
+> - **Inteligência de preenchimento**:
+>   - Clicar em **Doação** já define a categoria como `Doação` e sugere atalhos contextuais.
+>   - Clicar em **Custos de Trabalho** define como `Custos de Trabalho` para despesas operacionais e produção.
+>   - Clicar em **Cursos** define a categoria como `Cursos` sem sair do formulário principal nem abrir modal separado.
 
 ---
 
 ## 1. Visão Geral & Conceito
 
-- **O que faz**: Permite que o usuário oculte instantaneamente valores confidenciais (saldo em conta, faturamento, despesas, valores de notas fiscais e recebíveis) ao utilizar o app em locais públicos, em reuniões ou ao compartilhar a tela.
-- **Público-alvo**: O usuário e gestores da Central Kohari que precisam consultar o sistema sem expor cifras monetárias a terceiros próximos ou durante gravações/compartilhamento de tela.
-- **Valor Agregado**: Sensação de segurança e privacidade imediata com 1 clique, sem perder a percepção de volume, métricas proporcionais e organização da tela.
+- **O que faz**: Simplifica o modal de novo lançamento financeiro retirando a aba secundária do topo e transferindo a segmentação para a linha de **Categoria** com abas de 1 clique para **Doação**, **Custos de Trabalho** e **Cursos**.
+- **Público-alvo**: O usuário que deseja cadastrar despesas e entradas de forma rápida, sem telas fragmentadas.
+- **Valor Agregado**: Interface mais limpa, sem confusão de abas superiores, com seleção ágil de categorias frequentes.
 
 ---
 
 ## 2. Experiência do Usuário & Design Visual
 
 ### Fluxos Principais
-1. **Ativação pelo Cabeçalho Superior (`TopBar`)**:
-   - Um botão interativo com ícone de olho (`EyeOff` quando visível, `Eye` quando oculto) é exibido na barra superior ao lado dos indicadores de status e sincronização.
-   - Tooltip explicativo: *"Ocultar valores financeiros"* ou *"Mostrar valores financeiros"*.
-   - Ao clicar, o estado muda com transição suave e todos os valores monetários são substituídos por `R$ ••••••` (ou `••••` em contadores sensíveis).
-2. **Atalho Direto no Card "Resumo Financeiro"**:
-   - No card principal da tela de Início (`HomeView`), um botão compacto de alternância rápida fica posicionado ao lado do título "Resumo Financeiro" para facilidade de clique contextual.
-3. **Persistência Automática**:
-   - Ao recarregar a página ou abrir em uma nova aba, o estado da privacidade permanece exatamente como o usuário deixou (via chave `kohari_privacy_mode` no `localStorage`).
+1. **Abertura do Modal de Novo Lançamento**:
+   - Cabeçalho limpo com título *"Novo Lançamento Financeiro"* e botão de fechar (sem barra de abas superiores).
+2. **Seleção de Categoria com Abas no Formulário**:
+   - No campo **Categoria**, em vez de apenas um `<select>` tradicional, o usuário encontra abas estilizadas:
+     ```
+     Categoria:
+     [ 🤲 Doação ]  [ 💼 Custos de Trabalho ]  [ 🎓 Cursos ]  [ ▾ Mais ]
+     ```
+   - Ao clicar em qualquer uma das abas, a seleção fica ativa com feedback visual imediato (fundo destacado, borda colorida e texto destacado).
+   - Se selecionar `[ ▾ Mais ]`, abre um seletor suspenso com as demais categorias (Alimentação, Transporte, Moradia, Esporte, Lazer, Outros).
+3. **Sugestões Contextuais e Pré-definições**:
+   - Ao selecionar **Doação**: categoria vira `Doação`, tipo ajusta para `Despesa` e exibe tags rápidas como *"Dízimo"*, *"Ação Beneficente"*.
+   - Ao selecionar **Custos de Trabalho**: categoria vira `Custos de Trabalho` com sugestões como *"Equipamentos"*, *"Assinatura/Software"*, *"Diárias"*.
+   - Ao selecionar **Cursos**: categoria vira `Cursos`, exibindo um campo sutil opcional de plataforma (ex.: Udemy, Hotmart, Alura) sem trocar de tela.
 
-### Identidade Visual & Estilo dos Valores Mascarados
-- **Estilo de Máscara**: Fontes monoespaçadas sutis com pontos ou asteriscos estilizados (ex: `R$ • • • • •`), garantindo que o card preserve altura, largura e alinhamentos de texto originais.
-- **Feedback Visual**: Quando o modo de privacidade está ativo, o botão na barra ganha um destaque sutil (borda azul/índigo suave e ícone indicativo com riscado `EyeOff`), informando que o modo discreto está acionado.
+### Identidade Visual & Cores
+- **Doação**: `bg-rose-500/15 text-rose-400 border-rose-500/30` com ícone `HeartHandshake`.
+- **Custos de Trabalho**: `bg-blue-500/15 text-blue-400 border-blue-500/30` com ícone `Briefcase`.
+- **Cursos**: `bg-cyan-500/15 text-cyan-400 border-cyan-500/30` com ícone `GraduationCap`.
 
 ---
 
 ## 3. Decisões de Produto & Trade-offs
 
-- **Decisão 1: Mascarar com caracteres fixos vs. Ocultar o card inteiro**
-  - *Abordagem Escolhida*: Mascarar valores (`R$ ••••••`) mantendo o layout intacto.
-  - *Motivo*: Evita "layout shifts" (pulos de tela ou quebra de proporção dos grids) e preserva a leitura dos títulos, status e estrutura do sistema.
-  - *Alternativas Consideradas*: Recolher o card ou aplicar `blur` (desfoque visual). O desfoque pode variar entre navegadores e o mascaramento por caracteres é 100% legível, previsível e seguro contra inspeção rápida de ombro.
-
-- **Decisão 2: Persistência em `localStorage`**
-  - *Abordagem Escolhida*: Armazenamento local no cliente (`localStorage`).
-  - *Motivo*: Não polui o banco de dados nem requer requisições ao backend; cada dispositivo/navegador lembra da preferência do usuário instantaneamente sem delay de rede.
+- **Decisão 1: Remover as abas superiores de modo**
+  - *Abordagem*: Remover o bloco `tab-btn-general-finance` e `tab-btn-course-finance` do topo do modal.
+  - *Motivo*: Atende diretamente à anotação visual do usuário na imagem (*"remover essa aba de cursos"*).
+- **Decisão 2: Centralizar as categorias em abas integradas**
+  - *Abordagem*: Colocar as abas de categoria logo acima ou no lugar do select de categoria.
+  - *Motivo*: Facilita o preenchimento sem poluir o topo da janela modal.
 
 ---
 
@@ -56,38 +69,30 @@ Implementação de um botão e modo de privacidade global no topo da aplicação
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                        App.tsx                         │
-│  State: isPrivacyMode (lido / gravado no localStorage) │
-│  Handler: togglePrivacyMode()                          │
-└───────────┬───────────────────────────────┬────────────┘
-            │                               │
-            ▼                               ▼
-┌───────────────────────┐       ┌───────────────────────────────┐
-│      TopBar.tsx       │       │    HomeView & FinanceView     │
-│  - Botão Eye / EyeOff │       │  - Card Resumo Financeiro     │
-│  - Indicador ativo    │       │  - KPI Cards (Saldo, Receita) │
-│  - Tooltip acessível  │       │  - Tabela & Lista de Contas   │
-└───────────────────────┘       └───────────────┬───────────────┘
-                                                │
-                                                ▼
-                                ┌───────────────────────────────┐
-                                │      formatters.ts            │
-                                │  formatMoney(val, isPrivate)  │
-                                │  -> "R$ ••••••" se ativo      │
-                                └───────────────────────────────┘
+│             Modal: Novo Lançamento Financeiro          │
+│  (Sem abas no topo - cabeçalho único e direto)         │
+├────────────────────────────────────────────────────────┤
+│  Tipo: [ Despesa / Saída ]      Valor: [ R$ 0,00 ]     │
+│  Descrição: [                                    ]     │
+│                                                        │
+│  Categoria:                                            │
+│  ┌───────────┐ ┌────────────────────┐ ┌──────────────┐│
+│  │ 🤲 Doação │ │ 💼 Custos Trabalho │ │  🎓 Cursos   ││
+│  └───────────┘ └────────────────────┘ └──────────────┘│
+│  [ ▾ Outras categorias...                            ]│
+│                                                        │
+│  Data: [ 2026-10-31 ]         Status: [ Pago / Pend ]  │
+│  [✓] Despesa Recorrente Mensal (Fixa / Assinatura)     │
+└────────────────────────────────────────────────────────┘
 ```
 
-### Mapeamento de Modificações:
-1. **`src/lib/formatters.ts`**:
-   - Atualizar a função auxiliar `formatMoney(val: number, isPrivate?: boolean)` ou fornecer `formatMoneyPrivate(val: number, isPrivate: boolean)` para retornar de forma padronizada `R$ ••••••` quando a privacidade estiver ativada.
-2. **`src/App.tsx`**:
-   - Inicializar o estado `const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => localStorage.getItem('kohari_privacy_mode') === 'true')`.
-   - Adicionar o callback `togglePrivacyMode` que atualiza o estado e sincroniza com o `localStorage`.
-   - Passar `isPrivacyMode` e `onTogglePrivacyMode` para o `TopBar`, `HomeView` e `FinanceView`.
-3. **`src/components/TopBar.tsx`**:
-   - Adicionar o botão com ícone `Eye` / `EyeOff` na barra de ações rápidas ao lado do botão de sincronização / status.
-4. **`src/components/HomeView.tsx`**:
-   - Aplicar a máscara nos 4 mini-cards de métricas (Saldo Líquido, Receitas, Despesas, A Receber), no valor total central do gráfico de rosca de categorias e nos valores da lista de Contas a Receber.
-   - Adicionar botão de atalho no cabeçalho do card "Resumo Financeiro".
-5. **`src/components/FinanceView.tsx`**:
-   - Aplicar a máscara nos KPIs do topo da tela financeira e nos valores da lista de transações quando ativado.
+### Arquivos Impactados:
+1. **`src/components/Modals.tsx`**:
+   - Remover os botões de alternância do topo (`financeTab` tabs).
+   - Inserir as abas visuais de categoria (`Doação`, `Custos de Trabalho`, `Cursos`, `Outras`) com estados reativos.
+2. **`src/types.ts`**:
+   - Atualizar a união `Category` com `'Doação'` e `'Custos de Trabalho'`.
+3. **`src/lib/formatters.ts`**:
+   - Adicionar `'Doação'` e `'Custos de Trabalho'` no dicionário `CATEGORY_COLORS`.
+4. **`src/components/FinanceView.tsx`**:
+   - Incluir as categorias nos filtros da tela de finanças.

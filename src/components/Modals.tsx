@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, CalendarEvent, FinanceItem, ClientProject, InvoiceNF, InvoiceStatus, Priority, Category, FinanceType, ProjectStage } from '../types';
 import { todayISO, toISODate, formatDateBR } from '../lib/formatters';
-import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle, HardDrive, RefreshCw, GraduationCap, BookOpen } from 'lucide-react';
+import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle, HardDrive, RefreshCw, GraduationCap, BookOpen, HeartHandshake } from 'lucide-react';
 import { extractInvoiceFromFile, ExtractedInvoiceData } from '../lib/invoiceReader';
 import { GoogleDrivePickerModal } from './GoogleDrivePickerModal';
 import { DriveFile } from '../lib/googleDrive';
@@ -169,7 +169,7 @@ export const Modals: React.FC<ModalsProps> = ({
         setEventCategory('Trabalho');
       }
       setSyncToGcal(isGcalConnected);
-    } else if (type === 'course' || (type === 'finance' && (editItem?.is_course || editItem?.category === 'Cursos'))) {
+    } else if (type === 'course') {
       setFinanceTab('course');
       if (editItem) {
         let title = editItem.description || '';
@@ -212,24 +212,25 @@ export const Modals: React.FC<ModalsProps> = ({
         setFinDesc(editItem.description || '');
         setFinValue(editItem.value !== undefined ? String(editItem.value) : '');
         setFinDate(toISODate(editItem.date) || todayISO());
-        setFinCategory(editItem.category || 'Trabalho');
+        setFinCategory(editItem.category || 'Custos de Trabalho');
         const s = (editItem.status || '').toLowerCase();
         setFinStatus(s === 'pending' || s === 'pendente' || s === 'a receber' ? 'pending' : 'paid');
         setIsRecurring(!!editItem.is_recurring);
         setRecurringMonths(editItem.recurrence_months || 12);
+        setCoursePlatform(editItem.course_platform || '');
       } else {
         setFinType('expense');
         setFinDesc('');
         setFinValue('');
         setFinDate(todayISO());
-        setFinCategory('Trabalho');
+        setFinCategory('Custos de Trabalho');
         setFinStatus('paid');
         setIsRecurring(false);
         setRecurringMonths(12);
+        setCoursePlatform('');
 
         // Pre-initialize course fields as well
         setCourseTitle('');
-        setCoursePlatform('');
         setCourseArea('Tecnologia & Inovação');
         setCourseValue('');
         setCourseDate(todayISO());
@@ -327,6 +328,7 @@ export const Modals: React.FC<ModalsProps> = ({
     if (!finDesc.trim() || !finValue) return;
     const numValue = parseFloat(finValue) || 0;
     const baseDate = finDate || todayISO();
+    const isCourse = finCategory === 'Cursos';
 
     if (!editItem && isRecurring && recurringMonths > 1) {
       // Generate recurring series of monthly expenses
@@ -349,6 +351,8 @@ export const Modals: React.FC<ModalsProps> = ({
           installment_current: i + 1,
           installment_total: recurringMonths,
           recurrence_group_id: groupId,
+          is_course: isCourse,
+          course_platform: isCourse && coursePlatform.trim() ? coursePlatform.trim() : undefined,
         });
       }
 
@@ -368,6 +372,8 @@ export const Modals: React.FC<ModalsProps> = ({
         installment_current: editItem?.installment_current,
         installment_total: editItem?.installment_total,
         recurrence_group_id: editItem?.recurrence_group_id,
+        is_course: isCourse,
+        course_platform: isCourse && coursePlatform.trim() ? coursePlatform.trim() : undefined,
       });
     }
 
@@ -535,28 +541,15 @@ export const Modals: React.FC<ModalsProps> = ({
         <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#183147]">
           <div className="flex items-center gap-2">
             {type === 'task' && <CheckSquare className="text-blue-400" size={18} />}
-            {type === 'event' && <Calendar className="text-amber-400" size={18} />}
-            {(type === 'finance' || type === 'course') && (
-              financeTab === 'course' ? (
-                <GraduationCap className="text-cyan-400" size={18} />
-              ) : (
-                <DollarSign className="text-emerald-400" size={18} />
-              )
-            )}
+            {type === 'finance' && <DollarSign className="text-emerald-400" size={18} />}
+            {type === 'course' && <GraduationCap className="text-cyan-400" size={18} />}
             {type === 'client' && <Briefcase className="text-purple-400" size={18} />}
             {type === 'invoice' && <FileText className="text-blue-400" size={18} />}
             <h3 className="text-base font-bold text-white">
               {type === 'task' && (editItem ? 'Editar Tarefa' : 'Nova Tarefa')}
               {type === 'event' && (editItem ? 'Editar Compromisso' : 'Novo Compromisso')}
-              {(type === 'finance' || type === 'course') && (
-                editItem
-                  ? financeTab === 'course'
-                    ? 'Editar Curso & Treinamento'
-                    : 'Editar Lançamento'
-                  : financeTab === 'course'
-                  ? 'Novo Curso & Treinamento'
-                  : 'Novo Lançamento Financeiro'
-              )}
+              {type === 'finance' && (editItem ? 'Editar Lançamento' : 'Novo Lançamento Financeiro')}
+              {type === 'course' && (editItem ? 'Editar Curso & Treinamento' : 'Novo Curso & Treinamento')}
               {type === 'client' && (editItem ? 'Editar Projeto / Cliente' : 'Novo Projeto / Cliente')}
               {type === 'invoice' && (editItem ? 'Editar Nota Fiscal Emitida' : 'Nova Nota Fiscal Emitida')}
             </h3>
@@ -569,39 +562,6 @@ export const Modals: React.FC<ModalsProps> = ({
             <X size={17} />
           </button>
         </div>
-
-        {/* Tab switcher for finance / course */}
-        {(type === 'finance' || type === 'course') && !editItem && (
-          <div className="flex items-center gap-1.5 p-1 bg-[#07131f] border border-[#1a334b] rounded-xl mb-4 text-xs font-semibold">
-            <button
-              type="button"
-              id="tab-btn-general-finance"
-              onClick={() => setFinanceTab('general')}
-              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                financeTab === 'general'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-bold'
-                  : 'text-[#8194a8] hover:text-white hover:bg-[#0c1f30]'
-              }`}
-            >
-              <DollarSign size={14} className={financeTab === 'general' ? 'text-white' : 'text-emerald-400'} />
-              <span>Lançamento Geral</span>
-            </button>
-
-            <button
-              type="button"
-              id="tab-btn-course-finance"
-              onClick={() => setFinanceTab('course')}
-              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                financeTab === 'course'
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30 font-bold'
-                  : 'text-[#8194a8] hover:text-white hover:bg-[#0c1f30]'
-              }`}
-            >
-              <GraduationCap size={15} className={financeTab === 'course' ? 'text-white' : 'text-cyan-400'} />
-              <span>🎓 Aba de Cursos</span>
-            </button>
-          </div>
-        )}
 
         {/* Task Form */}
         {type === 'task' && (
@@ -804,7 +764,178 @@ export const Modals: React.FC<ModalsProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Categoria com Abas Rápidas: Doação, Custos de Trabalho, Cursos, e Outras */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-[#91a5b8] font-medium text-xs">
+                  Categoria:{' '}
+                  <span className="text-white font-semibold">
+                    {finCategory === 'Custos de Trabalho' ? 'Custos de Trabalho' : finCategory}
+                  </span>
+                </label>
+                <span className="text-[10px] text-[#698298]">Abas de seleção rápida</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {/* Aba Doação */}
+                <button
+                  type="button"
+                  id="cat-tab-doacao"
+                  onClick={() => {
+                    setFinCategory('Doação');
+                    setFinType('expense');
+                  }}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    finCategory === 'Doação'
+                      ? 'bg-pink-600 text-white border-pink-400 shadow-md shadow-pink-600/30 font-bold'
+                      : 'bg-[#07131f] text-[#9eb2c5] border-[#1f374d] hover:bg-[#0d2235] hover:text-white'
+                  }`}
+                >
+                  <HeartHandshake size={14} className={finCategory === 'Doação' ? 'text-white' : 'text-pink-400'} />
+                  <span>Doação</span>
+                </button>
+
+                {/* Aba Custos de Trabalho */}
+                <button
+                  type="button"
+                  id="cat-tab-custos-trabalho"
+                  onClick={() => {
+                    setFinCategory('Custos de Trabalho');
+                    setFinType('expense');
+                  }}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    finCategory === 'Custos de Trabalho'
+                      ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-600/30 font-bold'
+                      : 'bg-[#07131f] text-[#9eb2c5] border-[#1f374d] hover:bg-[#0d2235] hover:text-white'
+                  }`}
+                >
+                  <Briefcase size={14} className={finCategory === 'Custos de Trabalho' ? 'text-white' : 'text-indigo-400'} />
+                  <span className="truncate">Custos Trabalho</span>
+                </button>
+
+                {/* Aba Cursos */}
+                <button
+                  type="button"
+                  id="cat-tab-cursos"
+                  onClick={() => {
+                    setFinCategory('Cursos');
+                    setFinType('expense');
+                  }}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    finCategory === 'Cursos'
+                      ? 'bg-cyan-600 text-white border-cyan-400 shadow-md shadow-cyan-600/30 font-bold'
+                      : 'bg-[#07131f] text-[#9eb2c5] border-[#1f374d] hover:bg-[#0d2235] hover:text-white'
+                  }`}
+                >
+                  <GraduationCap size={14} className={finCategory === 'Cursos' ? 'text-white' : 'text-cyan-400'} />
+                  <span>Cursos</span>
+                </button>
+
+                {/* Seletor Outras Categorias */}
+                <div className="relative">
+                  <select
+                    value={['Doação', 'Custos de Trabalho', 'Cursos'].includes(finCategory) ? '' : finCategory}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setFinCategory(e.target.value);
+                      }
+                    }}
+                    className={`w-full h-full py-2 px-2 rounded-xl text-xs font-semibold border outline-none transition-all cursor-pointer ${
+                      !['Doação', 'Custos de Trabalho', 'Cursos'].includes(finCategory)
+                        ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-600/30 font-bold'
+                        : 'bg-[#07131f] text-[#8194a8] border-[#1f374d] hover:bg-[#0d2235] hover:text-white'
+                    }`}
+                  >
+                    <option value="" disabled className="bg-[#0a1622] text-[#8194a8]">
+                      + Outras...
+                    </option>
+                    <option value="Trabalho" className="bg-[#0a1622] text-white">Trabalho (Geral / Job)</option>
+                    <option value="Alimentação" className="bg-[#0a1622] text-white">Alimentação</option>
+                    <option value="Transporte" className="bg-[#0a1622] text-white">Transporte</option>
+                    <option value="Moradia" className="bg-[#0a1622] text-white">Moradia</option>
+                    <option value="Esporte" className="bg-[#0a1622] text-white">Esporte</option>
+                    <option value="Lazer" className="bg-[#0a1622] text-white">Lazer</option>
+                    <option value="Pessoal" className="bg-[#0a1622] text-white">Pessoal</option>
+                    <option value="Financeiro" className="bg-[#0a1622] text-white">Financeiro</option>
+                    <option value="Outros" className="bg-[#0a1622] text-white">Outros</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Sugestões e campos contextuais para Doação */}
+              {finCategory === 'Doação' && (
+                <div className="p-2 rounded-lg bg-pink-500/10 border border-pink-500/25 flex flex-wrap items-center gap-1.5 animate-in fade-in duration-150">
+                  <span className="text-[10px] text-pink-300 font-semibold flex items-center gap-1">
+                    <HeartHandshake size={11} /> Sugestões para Doação:
+                  </span>
+                  {['Dízimo / Oferta', 'Ação Social Beneficente', 'Doação de Apoio', 'Caridade Familiar'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setFinDesc(tag)}
+                      className="px-2 py-0.5 rounded text-[10px] bg-pink-500/20 hover:bg-pink-500/35 text-pink-200 border border-pink-500/30 transition-colors cursor-pointer"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Sugestões para Custos de Trabalho */}
+              {finCategory === 'Custos de Trabalho' && (
+                <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex flex-wrap items-center gap-1.5 animate-in fade-in duration-150">
+                  <span className="text-[10px] text-indigo-300 font-semibold flex items-center gap-1">
+                    <Briefcase size={11} /> Sugestões de Custos:
+                  </span>
+                  {['Equipamentos & Drone', 'Softwares & Licenças', 'Diárias & Equipe', 'Combustível / Job', 'Aluguel de Estúdio'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setFinDesc(tag)}
+                      className="px-2 py-0.5 rounded text-[10px] bg-indigo-500/20 hover:bg-indigo-500/35 text-indigo-200 border border-indigo-500/30 transition-colors cursor-pointer"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Sugestões e campo opcional de plataforma para Cursos */}
+              {finCategory === 'Cursos' && (
+                <div className="p-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1">
+                      <GraduationCap size={11} /> Sugestões de Curso:
+                    </span>
+                    {['Especialização em Drones', 'Treinamento Audiovisual', 'Edição & Pós-Produção', 'Gestão & Negócios'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setFinDesc(tag)}
+                        className="px-2 py-0.5 rounded text-[10px] bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-200 border border-cyan-500/30 transition-colors cursor-pointer"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="pt-1 border-t border-cyan-500/20 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <label className="text-[11px] text-cyan-200/90 font-medium whitespace-nowrap">
+                      Plataforma / Instituição (opcional):
+                    </label>
+                    <input
+                      type="text"
+                      value={coursePlatform}
+                      onChange={(e) => setCoursePlatform(e.target.value)}
+                      placeholder="Ex.: Hotmart, Alura, Udemy, Presencial..."
+                      className="flex-1 bg-[#07121d] border border-cyan-500/30 rounded-lg px-2.5 py-1 text-xs text-[#eef5fb] focus:border-cyan-400 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[#91a5b8] mb-1 font-medium">Data</label>
                 <input
@@ -814,24 +945,6 @@ export const Modals: React.FC<ModalsProps> = ({
                   onChange={(e) => setFinDate(e.target.value)}
                   className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
                 />
-              </div>
-
-              <div>
-                <label className="block text-[#91a5b8] mb-1 font-medium">Categoria</label>
-                <select
-                  value={finCategory}
-                  onChange={(e) => setFinCategory(e.target.value)}
-                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
-                >
-                  <option value="Trabalho">Trabalho</option>
-                  <option value="Cursos">Cursos & Educação</option>
-                  <option value="Alimentação">Alimentação</option>
-                  <option value="Transporte">Transporte</option>
-                  <option value="Moradia">Moradia</option>
-                  <option value="Esporte">Esporte</option>
-                  <option value="Lazer">Lazer</option>
-                  <option value="Outros">Outros</option>
-                </select>
               </div>
 
               <div>

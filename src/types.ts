@@ -1,6 +1,20 @@
 export type Priority = 'Alta' | 'Média' | 'Baixa';
 
-export type Category = 'Trabalho' | 'Pessoal' | 'Esporte' | 'Família' | 'Financeiro' | 'Cursos';
+export type Category =
+  | 'Trabalho'
+  | 'Custos de Trabalho'
+  | 'Cursos'
+  | 'Doação'
+  | 'Pessoal'
+  | 'Esporte'
+  | 'Família'
+  | 'Financeiro'
+  | 'Alimentação'
+  | 'Transporte'
+  | 'Moradia'
+  | 'Lazer'
+  | 'Outros';
+
 
 export interface Task {
   id: string;
