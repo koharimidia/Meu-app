@@ -76,7 +76,7 @@ export default function App() {
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
-    type: 'task' | 'event' | 'finance' | 'client' | 'invoice' | null;
+    type: 'task' | 'event' | 'finance' | 'client' | 'invoice' | 'course' | null;
     editItem: any;
   }>({
     isOpen: false,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task, CalendarEvent, FinanceItem } from '../types';
 import { formatMoney, formatDateBR, formatRelativeDate, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
-import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar, Eye, EyeOff, Edit2, Trash2, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar, Eye, EyeOff, Edit2, Trash2, ArrowUpRight, TrendingUp, GraduationCap } from 'lucide-react';
 import { DailyMotivationBanner } from './DailyMotivationBanner';
 
 interface HomeViewProps {
@@ -11,7 +11,7 @@ interface HomeViewProps {
   onToggleTask: (id: string) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
-  onOpenModal: (type: 'task' | 'event' | 'finance' | 'client') => void;
+  onOpenModal: (type: 'task' | 'event' | 'finance' | 'client' | 'course') => void;
   onSelectDateAgenda?: (date: string) => void;
   isPrivacyMode?: boolean;
   onTogglePrivacyMode?: () => void;
@@ -540,6 +540,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 className="w-full py-2 px-3 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#dce7f2] border border-[#28445b] text-xs font-semibold flex items-center justify-between transition-colors"
               >
                 <span>+ Lançamento Financeiro</span>
+                <ChevronRight size={14} />
+              </button>
+
+              <button
+                id="home-btn-new-course"
+                onClick={() => onOpenModal('course')}
+                className="w-full py-2 px-3 rounded-lg bg-[#0e2233] hover:bg-[#142e44] text-[#71d2eb] border border-[#1b3d56] text-xs font-semibold flex items-center justify-between transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <GraduationCap size={14} className="text-cyan-400" />
+                  <span>+ Novo Curso</span>
+                </span>
                 <ChevronRight size={14} />
               </button>
             </div>

@@ -16,6 +16,7 @@ import {
   TrendingUp,
   LogOut,
   User as UserIcon,
+  GraduationCap,
 } from 'lucide-react';
 import { NavView, AuthUser } from '../types';
 import { formatMoney } from '../lib/formatters';
@@ -32,7 +33,7 @@ interface TopBarProps {
   isSyncing: boolean;
   searchQuery: string;
   onSearchChange: (q: string) => void;
-  onOpenModal: (type: 'task' | 'event' | 'finance' | 'client' | 'invoice') => void;
+  onOpenModal: (type: 'task' | 'event' | 'finance' | 'client' | 'invoice' | 'course') => void;
   // Privacy and rich executive info
   isPrivacyMode: boolean;
   onTogglePrivacyMode: () => void;
@@ -311,6 +312,18 @@ export const TopBar: React.FC<TopBarProps> = ({
                   >
                     <DollarSign size={14} className="text-emerald-400" />
                     <span>Lançamento Financeiro</span>
+                  </button>
+
+                  <button
+                    id="btn-add-course-dropdown"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      onOpenModal('course');
+                    }}
+                    className="w-full text-left px-3.5 py-2 text-xs text-[#dce7f2] hover:bg-[#12304b] flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <GraduationCap size={14} className="text-cyan-400" />
+                    <span>Novo Curso / Treinamento</span>
                   </button>
 
                   <div className="my-1 border-t border-[#1a3147]" />

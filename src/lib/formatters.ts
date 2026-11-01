@@ -67,6 +67,7 @@ export const CATEGORY_COLORS: Record<Category, { bg: string; text: string; borde
   Esporte: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30', hex: '#28d7aa' },
   Família: { bg: 'bg-rose-500/15', text: 'text-rose-400', border: 'border-rose-500/30', hex: '#ff6683' },
   Financeiro: { bg: 'bg-purple-500/15', text: 'text-purple-400', border: 'border-purple-500/30', hex: '#a47aff' },
+  Cursos: { bg: 'bg-cyan-500/15', text: 'text-cyan-400', border: 'border-cyan-500/30', hex: '#06b6d4' },
 };
 
 export const PRIORITY_STYLES: Record<Priority, { label: string; text: string; bg: string }> = {

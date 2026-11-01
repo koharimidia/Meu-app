@@ -1,6 +1,6 @@
 export type Priority = 'Alta' | 'Média' | 'Baixa';
 
-export type Category = 'Trabalho' | 'Pessoal' | 'Esporte' | 'Família' | 'Financeiro';
+export type Category = 'Trabalho' | 'Pessoal' | 'Esporte' | 'Família' | 'Financeiro' | 'Cursos';
 
 export interface Task {
   id: string;
@@ -38,6 +38,12 @@ export interface FinanceItem {
   installment_current?: number;
   installment_total?: number;
   recurrence_group_id?: string;
+  // Course specific metadata
+  is_course?: boolean;
+  course_platform?: string;
+  course_status?: 'em_andamento' | 'concluido' | 'desejado';
+  course_link?: string;
+  course_area?: string;
 }
 
 export type ProjectStage = 'proposta' | 'negociacao' | 'em_andamento' | 'espera' | 'concluido';

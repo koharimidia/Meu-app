@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, CalendarEvent, FinanceItem, ClientProject, InvoiceNF, InvoiceStatus, Priority, Category, FinanceType, ProjectStage } from '../types';
 import { todayISO, toISODate, formatDateBR } from '../lib/formatters';
-import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle, HardDrive, RefreshCw } from 'lucide-react';
+import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle, HardDrive, RefreshCw, GraduationCap, BookOpen } from 'lucide-react';
 import { extractInvoiceFromFile, ExtractedInvoiceData } from '../lib/invoiceReader';
 import { GoogleDrivePickerModal } from './GoogleDrivePickerModal';
 import { DriveFile } from '../lib/googleDrive';
@@ -25,7 +25,7 @@ function addMonthsToDate(baseDateStr: string, monthsToAdd: number): string {
 
 interface ModalsProps {
   isOpen: boolean;
-  type: 'task' | 'event' | 'finance' | 'client' | 'invoice' | null;
+  type: 'task' | 'event' | 'finance' | 'client' | 'invoice' | 'course' | null;
   editItem: any | null;
   onClose: () => void;
   onSaveTask: (task: Partial<Task>) => void;
@@ -48,6 +48,9 @@ export const Modals: React.FC<ModalsProps> = ({
   onSaveInvoice,
   isGcalConnected,
 }) => {
+  // Tabs within finance / course modal
+  const [financeTab, setFinanceTab] = useState<'general' | 'course'>('general');
+
   // Task form state
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDue, setTaskDue] = useState(todayISO());
@@ -61,7 +64,7 @@ export const Modals: React.FC<ModalsProps> = ({
   const [eventCategory, setEventCategory] = useState<Category>('Trabalho');
   const [syncToGcal, setSyncToGcal] = useState(true);
 
-  // Finance form state
+  // Finance form state (Lançamento Geral)
   const [finType, setFinType] = useState<FinanceType>('income');
   const [finDesc, setFinDesc] = useState('');
   const [finValue, setFinValue] = useState('');
@@ -70,6 +73,19 @@ export const Modals: React.FC<ModalsProps> = ({
   const [finStatus, setFinStatus] = useState<'paid' | 'pending'>('paid');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringMonths, setRecurringMonths] = useState(12);
+
+  // Course form state (Aba de Cursos)
+  const [courseTitle, setCourseTitle] = useState('');
+  const [coursePlatform, setCoursePlatform] = useState('');
+  const [courseArea, setCourseArea] = useState('Tecnologia & Inovação');
+  const [courseValue, setCourseValue] = useState('');
+  const [courseDate, setCourseDate] = useState(todayISO());
+  const [coursePaymentStatus, setCoursePaymentStatus] = useState<'paid' | 'pending'>('paid');
+  const [courseProgressStatus, setCourseProgressStatus] = useState<'em_andamento' | 'concluido' | 'desejado'>('em_andamento');
+  const [courseLink, setCourseLink] = useState('');
+  const [isCourseRecurring, setIsCourseRecurring] = useState(false);
+  const [courseMonths, setCourseMonths] = useState(12);
+  const [createStudyTask, setCreateStudyTask] = useState(true);
 
   // Client form state
   const [clientName, setClientName] = useState('');
@@ -153,7 +169,44 @@ export const Modals: React.FC<ModalsProps> = ({
         setEventCategory('Trabalho');
       }
       setSyncToGcal(isGcalConnected);
+    } else if (type === 'course' || (type === 'finance' && (editItem?.is_course || editItem?.category === 'Cursos'))) {
+      setFinanceTab('course');
+      if (editItem) {
+        let title = editItem.description || '';
+        if (title.startsWith('Curso: ')) {
+          title = title.slice(7);
+          const parenIdx = title.lastIndexOf('(');
+          if (parenIdx !== -1 && title.endsWith(')')) {
+            title = title.slice(0, parenIdx).trim();
+          }
+        }
+        setCourseTitle(title);
+        setCoursePlatform(editItem.course_platform || '');
+        setCourseArea(editItem.course_area || 'Tecnologia & Inovação');
+        setCourseValue(editItem.value !== undefined ? String(editItem.value) : '');
+        setCourseDate(toISODate(editItem.date) || todayISO());
+        const s = (editItem.status || '').toLowerCase();
+        setCoursePaymentStatus(s === 'pending' || s === 'pendente' || s === 'a receber' ? 'pending' : 'paid');
+        setCourseProgressStatus(editItem.course_status || 'em_andamento');
+        setCourseLink(editItem.course_link || '');
+        setIsCourseRecurring(!!editItem.is_recurring);
+        setCourseMonths(editItem.recurrence_months || 12);
+        setCreateStudyTask(false);
+      } else {
+        setCourseTitle('');
+        setCoursePlatform('');
+        setCourseArea('Tecnologia & Inovação');
+        setCourseValue('');
+        setCourseDate(todayISO());
+        setCoursePaymentStatus('paid');
+        setCourseProgressStatus('em_andamento');
+        setCourseLink('');
+        setIsCourseRecurring(false);
+        setCourseMonths(12);
+        setCreateStudyTask(true);
+      }
     } else if (type === 'finance') {
+      setFinanceTab('general');
       if (editItem) {
         setFinType(editItem.type || 'income');
         setFinDesc(editItem.description || '');
@@ -173,6 +226,19 @@ export const Modals: React.FC<ModalsProps> = ({
         setFinStatus('paid');
         setIsRecurring(false);
         setRecurringMonths(12);
+
+        // Pre-initialize course fields as well
+        setCourseTitle('');
+        setCoursePlatform('');
+        setCourseArea('Tecnologia & Inovação');
+        setCourseValue('');
+        setCourseDate(todayISO());
+        setCoursePaymentStatus('paid');
+        setCourseProgressStatus('em_andamento');
+        setCourseLink('');
+        setIsCourseRecurring(false);
+        setCourseMonths(12);
+        setCreateStudyTask(true);
       }
     } else if (type === 'client') {
       if (editItem) {
@@ -308,6 +374,78 @@ export const Modals: React.FC<ModalsProps> = ({
     onClose();
   };
 
+  const handleSubmitCourse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courseTitle.trim() || !courseValue) return;
+    const numValue = parseFloat(courseValue) || 0;
+    const baseDate = courseDate || todayISO();
+    const fullDesc = `Curso: ${courseTitle.trim()}${coursePlatform.trim() ? ` (${coursePlatform.trim()})` : ''}`;
+
+    if (!editItem && isCourseRecurring && courseMonths > 1) {
+      const groupId = `course-rec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const batch: Partial<FinanceItem>[] = [];
+
+      for (let i = 0; i < courseMonths; i++) {
+        const itemDate = addMonthsToDate(baseDate, i);
+        batch.push({
+          id: `fin-course-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 5)}`,
+          type: 'expense',
+          description: `${fullDesc} (${i + 1}/${courseMonths})`,
+          value: numValue,
+          date: itemDate,
+          category: 'Cursos',
+          status: i === 0 ? coursePaymentStatus : 'pending',
+          is_recurring: true,
+          recurrence_type: 'monthly',
+          recurrence_months: courseMonths,
+          installment_current: i + 1,
+          installment_total: courseMonths,
+          recurrence_group_id: groupId,
+          is_course: true,
+          course_platform: coursePlatform.trim(),
+          course_status: courseProgressStatus,
+          course_link: courseLink.trim(),
+          course_area: courseArea,
+        });
+      }
+
+      onSaveFinance(batch[0], batch);
+    } else {
+      onSaveFinance({
+        id: editItem?.id,
+        type: 'expense',
+        description: fullDesc,
+        value: numValue,
+        date: baseDate,
+        category: 'Cursos',
+        status: coursePaymentStatus,
+        is_recurring: isCourseRecurring,
+        recurrence_type: isCourseRecurring ? 'monthly' : undefined,
+        recurrence_months: isCourseRecurring ? courseMonths : undefined,
+        installment_current: editItem?.installment_current,
+        installment_total: editItem?.installment_total,
+        recurrence_group_id: editItem?.recurrence_group_id,
+        is_course: true,
+        course_platform: coursePlatform.trim(),
+        course_status: courseProgressStatus,
+        course_link: courseLink.trim(),
+        course_area: courseArea,
+      });
+    }
+
+    if (!editItem && createStudyTask && courseTitle.trim()) {
+      onSaveTask({
+        title: `Estudar: ${courseTitle.trim()}`,
+        due: baseDate,
+        priority: 'Média',
+        category: 'Cursos',
+        done: false,
+      });
+    }
+
+    onClose();
+  };
+
   const handleSubmitClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName.trim() || !clientProjectTitle.trim()) return;
@@ -398,13 +536,27 @@ export const Modals: React.FC<ModalsProps> = ({
           <div className="flex items-center gap-2">
             {type === 'task' && <CheckSquare className="text-blue-400" size={18} />}
             {type === 'event' && <Calendar className="text-amber-400" size={18} />}
-            {type === 'finance' && <DollarSign className="text-emerald-400" size={18} />}
+            {(type === 'finance' || type === 'course') && (
+              financeTab === 'course' ? (
+                <GraduationCap className="text-cyan-400" size={18} />
+              ) : (
+                <DollarSign className="text-emerald-400" size={18} />
+              )
+            )}
             {type === 'client' && <Briefcase className="text-purple-400" size={18} />}
             {type === 'invoice' && <FileText className="text-blue-400" size={18} />}
             <h3 className="text-base font-bold text-white">
               {type === 'task' && (editItem ? 'Editar Tarefa' : 'Nova Tarefa')}
               {type === 'event' && (editItem ? 'Editar Compromisso' : 'Novo Compromisso')}
-              {type === 'finance' && (editItem ? 'Editar Lançamento' : 'Novo Lançamento Financeiro')}
+              {(type === 'finance' || type === 'course') && (
+                editItem
+                  ? financeTab === 'course'
+                    ? 'Editar Curso & Treinamento'
+                    : 'Editar Lançamento'
+                  : financeTab === 'course'
+                  ? 'Novo Curso & Treinamento'
+                  : 'Novo Lançamento Financeiro'
+              )}
               {type === 'client' && (editItem ? 'Editar Projeto / Cliente' : 'Novo Projeto / Cliente')}
               {type === 'invoice' && (editItem ? 'Editar Nota Fiscal Emitida' : 'Nova Nota Fiscal Emitida')}
             </h3>
@@ -417,6 +569,39 @@ export const Modals: React.FC<ModalsProps> = ({
             <X size={17} />
           </button>
         </div>
+
+        {/* Tab switcher for finance / course */}
+        {(type === 'finance' || type === 'course') && !editItem && (
+          <div className="flex items-center gap-1.5 p-1 bg-[#07131f] border border-[#1a334b] rounded-xl mb-4 text-xs font-semibold">
+            <button
+              type="button"
+              id="tab-btn-general-finance"
+              onClick={() => setFinanceTab('general')}
+              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                financeTab === 'general'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-bold'
+                  : 'text-[#8194a8] hover:text-white hover:bg-[#0c1f30]'
+              }`}
+            >
+              <DollarSign size={14} className={financeTab === 'general' ? 'text-white' : 'text-emerald-400'} />
+              <span>Lançamento Geral</span>
+            </button>
+
+            <button
+              type="button"
+              id="tab-btn-course-finance"
+              onClick={() => setFinanceTab('course')}
+              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                financeTab === 'course'
+                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30 font-bold'
+                  : 'text-[#8194a8] hover:text-white hover:bg-[#0c1f30]'
+              }`}
+            >
+              <GraduationCap size={15} className={financeTab === 'course' ? 'text-white' : 'text-cyan-400'} />
+              <span>🎓 Aba de Cursos</span>
+            </button>
+          </div>
+        )}
 
         {/* Task Form */}
         {type === 'task' && (
@@ -576,8 +761,8 @@ export const Modals: React.FC<ModalsProps> = ({
           </form>
         )}
 
-        {/* Finance Form */}
-        {type === 'finance' && (
+        {/* Finance Form (Lançamento Geral) */}
+        {(type === 'finance' || type === 'course') && financeTab === 'general' && (
           <form onSubmit={handleSubmitFinance} className="space-y-4 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -639,6 +824,7 @@ export const Modals: React.FC<ModalsProps> = ({
                   className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-blue-500 outline-none"
                 >
                   <option value="Trabalho">Trabalho</option>
+                  <option value="Cursos">Cursos & Educação</option>
                   <option value="Alimentação">Alimentação</option>
                   <option value="Transporte">Transporte</option>
                   <option value="Moradia">Moradia</option>
@@ -713,15 +899,224 @@ export const Modals: React.FC<ModalsProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#b8cbe0] border border-[#28445b] font-medium"
+                className="px-4 py-2 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#b8cbe0] border border-[#28445b] font-medium cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/20"
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/20 cursor-pointer"
               >
                 Salvar Lançamento
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Course Form (Aba de Cursos) */}
+        {(type === 'course' || (type === 'finance' && financeTab === 'course')) && (
+          <form onSubmit={handleSubmitCourse} className="space-y-4 text-xs">
+            <div>
+              <label className="block text-[#91a5b8] mb-1 font-medium">Nome / Título do Curso</label>
+              <input
+                type="text"
+                required
+                value={courseTitle}
+                onChange={(e) => setCourseTitle(e.target.value)}
+                placeholder="Ex.: Especialização em Drones e Imagens Aéreas"
+                className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[#91a5b8] font-medium">Instituição / Plataforma de Ensino</label>
+                <span className="text-[10px] text-[#698298]">Sugestões rápidas</span>
+              </div>
+              <input
+                type="text"
+                value={coursePlatform}
+                onChange={(e) => setCoursePlatform(e.target.value)}
+                placeholder="Ex.: Hotmart, Alura, Udemy, EBAC, Presencial..."
+                className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none"
+              />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {['Hotmart', 'Alura', 'Udemy', 'EBAC', 'Coursera', 'YouTube', 'Presencial'].map((plat) => (
+                  <button
+                    key={plat}
+                    type="button"
+                    onClick={() => setCoursePlatform(plat)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all cursor-pointer ${
+                      coursePlatform === plat
+                        ? 'bg-cyan-600 text-white shadow-xs'
+                        : 'bg-[#0e2133] hover:bg-[#16334f] text-[#8ea7be] border border-[#1b3a56]'
+                    }`}
+                  >
+                    {plat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Investimento (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={courseValue}
+                  onChange={(e) => setCourseValue(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Data Início / Matrícula</label>
+                <input
+                  type="date"
+                  required
+                  value={courseDate}
+                  onChange={(e) => setCourseDate(e.target.value)}
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Status do Pagamento</label>
+                <select
+                  value={coursePaymentStatus}
+                  onChange={(e) => setCoursePaymentStatus(e.target.value as 'paid' | 'pending')}
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none"
+                >
+                  <option value="paid">Pago / Quitado</option>
+                  <option value="pending">A Pagar (Pendente)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Área de Conhecimento</label>
+                <select
+                  value={courseArea}
+                  onChange={(e) => setCourseArea(e.target.value)}
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none"
+                >
+                  <option value="Tecnologia & Inovação">Tecnologia & Inovação</option>
+                  <option value="Drones, Imagens & Audiovisual">Drones, Imagens & Audiovisual</option>
+                  <option value="Gestão, Finanças & Negócios">Gestão, Finanças & Negócios</option>
+                  <option value="Marketing & Vendas">Marketing & Vendas</option>
+                  <option value="Idiomas & Comunicação">Idiomas & Comunicação</option>
+                  <option value="Desenvolvimento Pessoal">Desenvolvimento Pessoal</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[#91a5b8] mb-1 font-medium">Progresso / Status do Curso</label>
+                <select
+                  value={courseProgressStatus}
+                  onChange={(e) => setCourseProgressStatus(e.target.value as 'em_andamento' | 'concluido' | 'desejado')}
+                  className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none"
+                >
+                  <option value="em_andamento">⏳ Em Andamento</option>
+                  <option value="concluido">✅ Concluído</option>
+                  <option value="desejado">🎯 Lista de Desejos / Futuro</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[#91a5b8] mb-1 font-medium">Link das Aulas / Plataforma (Opcional)</label>
+              <input
+                type="url"
+                value={courseLink}
+                onChange={(e) => setCourseLink(e.target.value)}
+                placeholder="https://exemplo.com.br/meus-cursos"
+                className="w-full bg-[#07121d] border border-[#243b50] rounded-lg px-3 py-2 text-[#eef5fb] focus:border-cyan-500 outline-none text-xs"
+              />
+            </div>
+
+            {/* Recorrência / Parcelamento do Curso */}
+            <div className="p-3.5 rounded-xl bg-[#07131f] border border-[#1b344d] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    id="checkbox-course-recurring"
+                    checked={isCourseRecurring}
+                    onChange={(e) => setIsCourseRecurring(e.target.checked)}
+                    className="w-4 h-4 rounded border-[#243b50] bg-[#0c1c2a] text-cyan-600 focus:ring-0 cursor-pointer"
+                  />
+                  <span className="font-semibold text-white text-xs flex items-center gap-1.5">
+                    <RefreshCw size={13} className="text-cyan-400" />
+                    Parcelamento / Mensalidade Recorrente
+                  </span>
+                </label>
+                {isCourseRecurring && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+                    Parcelamento Ativo
+                  </span>
+                )}
+              </div>
+
+              {isCourseRecurring && (
+                <div className="pt-2 border-t border-[#14283a] space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-[11px] text-[#91a5b8] font-medium">Quantidade de parcelas/meses:</label>
+                    <select
+                      value={courseMonths}
+                      onChange={(e) => setCourseMonths(Number(e.target.value))}
+                      className="bg-[#0c1c2a] border border-[#243b50] text-[#eef5fb] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-cyan-500 font-semibold"
+                    >
+                      <option value={3}>3 parcelas (Trimestral)</option>
+                      <option value={6}>6 parcelas (Semestral)</option>
+                      <option value={10}>10 parcelas</option>
+                      <option value={12}>12 parcelas (1 ano)</option>
+                      <option value={24}>24 parcelas (2 anos)</option>
+                    </select>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-[#0b1e30] border border-[#1b3e5e] text-[11px] text-cyan-200/90 leading-relaxed">
+                    📅 Serão programados <strong>{courseMonths} lançamentos mensais de R$ {courseValue || '0,00'}</strong> em Finanças com a categoria <strong>Cursos</strong>.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Checkbox Criar Tarefa de Estudo */}
+            {!editItem && (
+              <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#07131f] border border-[#173046] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={createStudyTask}
+                  onChange={(e) => setCreateStudyTask(e.target.checked)}
+                  className="w-4 h-4 rounded border-[#243b50] bg-[#0c1c2a] text-cyan-600 focus:ring-0 cursor-pointer"
+                />
+                <span className="text-xs text-[#c2d7ea] flex items-center gap-1.5">
+                  <BookOpen size={13} className="text-cyan-400" />
+                  <span>Criar tarefa de estudo na lista de tarefas automaticamente</span>
+                </span>
+              </label>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#183147]">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-[#102233] hover:bg-[#16304a] text-[#b8cbe0] border border-[#28445b] font-medium cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold shadow-md shadow-cyan-600/25 flex items-center gap-1.5 cursor-pointer"
+              >
+                <GraduationCap size={15} />
+                <span>Salvar Curso</span>
               </button>
             </div>
           </form>

@@ -13,11 +13,13 @@ import {
   EyeOff,
   RefreshCw,
   Calendar,
+  GraduationCap,
+  ExternalLink,
 } from 'lucide-react';
 
 interface FinanceViewProps {
   finance: FinanceItem[];
-  onOpenModal: (type: 'finance', item?: FinanceItem) => void;
+  onOpenModal: (type: 'finance' | 'course', item?: FinanceItem) => void;
   onDeleteFinance: (id: string) => void;
   isPrivacyMode?: boolean;
   onTogglePrivacyMode?: () => void;
@@ -40,7 +42,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   isPrivacyMode = false,
   onTogglePrivacyMode,
 }) => {
-  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense' | 'recurring'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense' | 'courses' | 'recurring'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [periodFilter, setPeriodFilter] = useState<string>('current_and_next');
 
@@ -163,6 +165,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   // Filter list by type
   if (typeFilter === 'recurring') {
     filtered = filtered.filter((f) => !!f.is_recurring);
+  } else if (typeFilter === 'courses') {
+    filtered = filtered.filter((f) => f.category === 'Cursos' || !!f.is_course);
   } else if (typeFilter !== 'all') {
     filtered = filtered.filter((f) => f.type === typeFilter);
   }
@@ -382,6 +386,16 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                   Despesas
                 </button>
                 <button
+                  onClick={() => setTypeFilter('courses')}
+                  className={`px-2 py-1 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                    typeFilter === 'courses' ? 'bg-cyan-600/40 text-cyan-200 border border-cyan-500/40' : 'text-[#8194a8] hover:text-white'
+                  }`}
+                  title="Filtrar cursos e treinamentos"
+                >
+                  <GraduationCap size={11} />
+                  <span>Cursos</span>
+                </button>
+                <button
                   onClick={() => setTypeFilter('recurring')}
                   className={`px-2 py-1 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 ${
                     typeFilter === 'recurring' ? 'bg-blue-600/40 text-blue-200 border border-blue-500/40' : 'text-[#8194a8] hover:text-white'
@@ -435,6 +449,21 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               <span className="text-[11px] text-[#637d95]">Filtro padrão ativo</span>
             )}
           </div>
+
+          {typeFilter === 'courses' && (
+            <div className="mb-4 p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-800/40 flex items-center justify-between text-xs text-cyan-200">
+              <span className="flex items-center gap-1.5">
+                <GraduationCap size={14} className="text-cyan-400" />
+                Exibindo cursos e treinamentos ({filtered.length} lançamentos registrados)
+              </span>
+              <button
+                onClick={() => onOpenModal('course')}
+                className="text-[11px] underline text-cyan-300 hover:text-white font-medium"
+              >
+                + Novo Curso
+              </button>
+            </div>
+          )}
 
           {typeFilter === 'recurring' && (
             <div className="mb-4 p-2.5 rounded-xl bg-blue-950/30 border border-blue-800/40 flex items-center justify-between text-xs text-blue-200">
@@ -496,6 +525,26 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 <RefreshCw size={9} />
                                 {item.installment_total ? `${item.installment_current}/${item.installment_total}` : 'Mensal'}
                               </span>
+                            )}
+                            {(item.is_course || item.category === 'Cursos') && (
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 flex items-center gap-0.5 shrink-0"
+                                title={item.course_status ? `Status: ${item.course_status}` : 'Curso & Educação'}
+                              >
+                                <GraduationCap size={9} />
+                                {item.course_platform || 'Curso'}
+                              </span>
+                            )}
+                            {item.course_link && (
+                              <a
+                                href={item.course_link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[#8194a8] hover:text-cyan-300 transition-colors p-0.5 inline-flex items-center"
+                                title="Acessar plataforma do curso"
+                              >
+                                <ExternalLink size={10} />
+                              </a>
                             )}
                           </div>
                         </td>
