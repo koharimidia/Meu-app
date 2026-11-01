@@ -11,6 +11,7 @@ import {
   Clock,
   Eye,
   EyeOff,
+  RefreshCw,
 } from 'lucide-react';
 
 interface FinanceViewProps {
@@ -28,7 +29,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   isPrivacyMode = false,
   onTogglePrivacyMode,
 }) => {
-  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense' | 'recurring'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
   const isPaid = (status: string) => ['paid', 'pago', 'recebido', 'received'].includes((status || '').toLowerCase().trim());
@@ -54,7 +55,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
   // Filter list
   let filtered = [...finance].sort((a, b) => toISODate(b.date).localeCompare(toISODate(a.date)));
 
-  if (typeFilter !== 'all') {
+  if (typeFilter === 'recurring') {
+    filtered = filtered.filter((f) => !!f.is_recurring);
+  } else if (typeFilter !== 'all') {
     filtered = filtered.filter((f) => f.type === typeFilter);
   }
   if (statusFilter === 'paid') {
@@ -206,6 +209,16 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 >
                   Despesas
                 </button>
+                <button
+                  onClick={() => setTypeFilter('recurring')}
+                  className={`px-2 py-1 rounded font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                    typeFilter === 'recurring' ? 'bg-blue-600/40 text-blue-200 border border-blue-500/40' : 'text-[#8194a8] hover:text-white'
+                  }`}
+                  title="Filtrar despesas recorrentes mensais"
+                >
+                  <RefreshCw size={11} className={typeFilter === 'recurring' ? 'animate-spin' : ''} />
+                  <span>Recorrentes</span>
+                </button>
               </div>
 
               <select
@@ -219,6 +232,21 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
               </select>
             </div>
           </div>
+
+          {typeFilter === 'recurring' && (
+            <div className="mb-4 p-2.5 rounded-xl bg-blue-950/30 border border-blue-800/40 flex items-center justify-between text-xs text-blue-200">
+              <span className="flex items-center gap-1.5">
+                <RefreshCw size={13} className="text-blue-400" />
+                Exibindo despesas mensais programadas / recorrentes ({filtered.length} lançamentos)
+              </span>
+              <button
+                onClick={() => onOpenModal('finance')}
+                className="text-[11px] underline text-blue-300 hover:text-white"
+              >
+                + Nova Recorrente
+              </button>
+            </div>
+          )}
 
           {filtered.length === 0 ? (
             <div className="p-12 text-center text-xs text-[#8194a8]">
@@ -246,7 +274,20 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     return (
                       <tr key={item.id} className="hover:bg-[#0c1c2a] transition-colors">
                         <td className="py-2.5 px-3 font-semibold text-[#c7d7e6]">{formatDateBR(item.date)}</td>
-                        <td className="py-2.5 px-3 font-medium text-white">{item.description}</td>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium text-white">{item.description}</span>
+                            {item.is_recurring && (
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/25 flex items-center gap-0.5 shrink-0"
+                                title={item.installment_total ? `Parcela ${item.installment_current} de ${item.installment_total}` : 'Despesa Mensal Recorrente'}
+                              >
+                                <RefreshCw size={9} />
+                                {item.installment_total ? `${item.installment_current}/${item.installment_total}` : 'Mensal'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-2.5 px-3">
                           <span
                             className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${

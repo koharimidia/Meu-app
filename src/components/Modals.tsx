@@ -1,10 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Task, CalendarEvent, FinanceItem, ClientProject, InvoiceNF, InvoiceStatus, Priority, Category, FinanceType, ProjectStage } from '../types';
-import { todayISO, toISODate } from '../lib/formatters';
-import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle, HardDrive } from 'lucide-react';
+import { todayISO, toISODate, formatDateBR } from '../lib/formatters';
+import { X, CheckSquare, Calendar, DollarSign, Briefcase, FileText, Sparkles, UploadCloud, Loader2, CheckCircle2, AlertCircle, HardDrive, RefreshCw } from 'lucide-react';
 import { extractInvoiceFromFile, ExtractedInvoiceData } from '../lib/invoiceReader';
 import { GoogleDrivePickerModal } from './GoogleDrivePickerModal';
 import { DriveFile } from '../lib/googleDrive';
+
+function addMonthsToDate(baseDateStr: string, monthsToAdd: number): string {
+  const parts = baseDateStr.split('-');
+  if (parts.length !== 3) return baseDateStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+
+  const target = new Date(year, month + monthsToAdd, 1);
+  const maxDays = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  const clampedDay = Math.min(day, maxDays);
+
+  const y = target.getFullYear();
+  const m = String(target.getMonth() + 1).padStart(2, '0');
+  const d = String(clampedDay).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 interface ModalsProps {
   isOpen: boolean;
@@ -13,7 +30,7 @@ interface ModalsProps {
   onClose: () => void;
   onSaveTask: (task: Partial<Task>) => void;
   onSaveEvent: (event: Partial<CalendarEvent>, syncToGcal: boolean) => void;
-  onSaveFinance: (finance: Partial<FinanceItem>) => void;
+  onSaveFinance: (finance: Partial<FinanceItem>, recurringBatch?: Partial<FinanceItem>[]) => void;
   onSaveClient: (client: Partial<ClientProject>) => void;
   onSaveInvoice?: (invoice: Partial<InvoiceNF>) => void;
   isGcalConnected: boolean;
@@ -51,6 +68,8 @@ export const Modals: React.FC<ModalsProps> = ({
   const [finDate, setFinDate] = useState(todayISO());
   const [finCategory, setFinCategory] = useState('Trabalho');
   const [finStatus, setFinStatus] = useState<'paid' | 'pending'>('paid');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringMonths, setRecurringMonths] = useState(12);
 
   // Client form state
   const [clientName, setClientName] = useState('');
@@ -143,13 +162,17 @@ export const Modals: React.FC<ModalsProps> = ({
         setFinCategory(editItem.category || 'Trabalho');
         const s = (editItem.status || '').toLowerCase();
         setFinStatus(s === 'pending' || s === 'pendente' || s === 'a receber' ? 'pending' : 'paid');
+        setIsRecurring(!!editItem.is_recurring);
+        setRecurringMonths(editItem.recurrence_months || 12);
       } else {
-        setFinType('income');
+        setFinType('expense');
         setFinDesc('');
         setFinValue('');
         setFinDate(todayISO());
         setFinCategory('Trabalho');
         setFinStatus('paid');
+        setIsRecurring(false);
+        setRecurringMonths(12);
       }
     } else if (type === 'client') {
       if (editItem) {
@@ -236,15 +259,52 @@ export const Modals: React.FC<ModalsProps> = ({
   const handleSubmitFinance = (e: React.FormEvent) => {
     e.preventDefault();
     if (!finDesc.trim() || !finValue) return;
-    onSaveFinance({
-      id: editItem?.id,
-      type: finType,
-      description: finDesc.trim(),
-      value: parseFloat(finValue) || 0,
-      date: finDate,
-      category: finCategory,
-      status: finStatus,
-    });
+    const numValue = parseFloat(finValue) || 0;
+    const baseDate = finDate || todayISO();
+
+    if (!editItem && isRecurring && recurringMonths > 1) {
+      // Generate recurring series of monthly expenses
+      const groupId = `rec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const batch: Partial<FinanceItem>[] = [];
+
+      for (let i = 0; i < recurringMonths; i++) {
+        const itemDate = addMonthsToDate(baseDate, i);
+        batch.push({
+          id: `fin-rec-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 5)}`,
+          type: finType,
+          description: `${finDesc.trim()} (${i + 1}/${recurringMonths})`,
+          value: numValue,
+          date: itemDate,
+          category: finCategory,
+          status: i === 0 ? finStatus : 'pending',
+          is_recurring: true,
+          recurrence_type: 'monthly',
+          recurrence_months: recurringMonths,
+          installment_current: i + 1,
+          installment_total: recurringMonths,
+          recurrence_group_id: groupId,
+        });
+      }
+
+      onSaveFinance(batch[0], batch);
+    } else {
+      onSaveFinance({
+        id: editItem?.id,
+        type: finType,
+        description: finDesc.trim(),
+        value: numValue,
+        date: baseDate,
+        category: finCategory,
+        status: finStatus,
+        is_recurring: isRecurring,
+        recurrence_type: isRecurring ? 'monthly' : undefined,
+        recurrence_months: isRecurring ? recurringMonths : undefined,
+        installment_current: editItem?.installment_current,
+        installment_total: editItem?.installment_total,
+        recurrence_group_id: editItem?.recurrence_group_id,
+      });
+    }
+
     onClose();
   };
 
@@ -599,6 +659,54 @@ export const Modals: React.FC<ModalsProps> = ({
                   <option value="pending">{finType === 'income' ? 'A Receber' : 'Pendente'}</option>
                 </select>
               </div>
+            </div>
+
+            {/* Opção de Despesa Recorrente Mensal */}
+            <div className="p-3.5 rounded-xl bg-[#07131f] border border-[#1b344d] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    id="checkbox-recurring-expense"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    className="w-4 h-4 rounded border-[#243b50] bg-[#0c1c2a] text-blue-600 focus:ring-0 cursor-pointer"
+                  />
+                  <span className="font-semibold text-white text-xs flex items-center gap-1.5">
+                    <RefreshCw size={13} className="text-blue-400" />
+                    Despesa Recorrente Mensal (Fixa / Assinatura)
+                  </span>
+                </label>
+                {isRecurring && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30">
+                    Recorrência Ativa
+                  </span>
+                )}
+              </div>
+
+              {isRecurring && (
+                <div className="pt-2 border-t border-[#14283a] space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-[11px] text-[#91a5b8] font-medium">Repetir mensalmente por:</label>
+                    <select
+                      value={recurringMonths}
+                      onChange={(e) => setRecurringMonths(Number(e.target.value))}
+                      className="bg-[#0c1c2a] border border-[#243b50] text-[#eef5fb] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-blue-500 font-semibold"
+                    >
+                      <option value={3}>3 meses</option>
+                      <option value={6}>6 meses (Semestral)</option>
+                      <option value={12}>12 meses (1 ano inteiro)</option>
+                      <option value={24}>24 meses (2 anos)</option>
+                      <option value={36}>36 meses (3 anos)</option>
+                    </select>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-[#0b1e30] border border-[#1b3e5e] text-[11px] text-blue-200/90 leading-relaxed">
+                    📅 Serão programados automaticamente <strong>{recurringMonths} lançamentos mensais</strong> (todo dia {finDate ? finDate.slice(8, 10) : 'XX'} a partir de {formatDateBR(finDate)}).
+                    {!editItem && ' O 1º mês é salvo com o status selecionado e os demais como Pendente para acompanhamento.'}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#183147]">

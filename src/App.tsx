@@ -339,7 +339,37 @@ export default function App() {
   };
 
   // Finance Handlers
-  const handleSaveFinance = async (finData: Partial<FinanceItem>) => {
+  const handleSaveFinance = async (finData: Partial<FinanceItem>, recurringBatch?: Partial<FinanceItem>[]) => {
+    if (recurringBatch && recurringBatch.length > 0) {
+      const formattedBatch: FinanceItem[] = recurringBatch.map((item, idx) => ({
+        id: item.id || `fin-rec-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+        type: item.type || 'expense',
+        description: item.description || 'Despesa Recorrente',
+        value: item.value || 0,
+        date: item.date || todayISO(),
+        category: item.category || 'Outros',
+        status: item.status || (idx === 0 ? 'paid' : 'pending'),
+        is_recurring: true,
+        recurrence_type: item.recurrence_type || 'monthly',
+        recurrence_months: item.recurrence_months,
+        installment_current: item.installment_current,
+        installment_total: item.installment_total,
+        recurrence_group_id: item.recurrence_group_id,
+      }));
+
+      const nextFinance = [...formattedBatch, ...finance];
+      setFinance(nextFinance);
+      setLocal('finance', nextFinance);
+
+      // Save each in Supabase in background
+      for (const recItem of formattedBatch) {
+        saveFinance(recItem);
+      }
+
+      showToast(`${formattedBatch.length} despesas mensais recorrentes programadas ✓`, 'success');
+      return;
+    }
+
     const isEdit = !!finData.id;
     const newItem: FinanceItem = {
       id: finData.id || `fin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
@@ -349,6 +379,12 @@ export default function App() {
       date: finData.date || todayISO(),
       category: finData.category || 'Trabalho',
       status: finData.status || 'paid',
+      is_recurring: finData.is_recurring,
+      recurrence_type: finData.recurrence_type,
+      recurrence_months: finData.recurrence_months,
+      installment_current: finData.installment_current,
+      installment_total: finData.installment_total,
+      recurrence_group_id: finData.recurrence_group_id,
     };
 
     const nextFinance = isEdit

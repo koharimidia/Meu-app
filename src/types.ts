@@ -32,6 +32,12 @@ export interface FinanceItem {
   date: string; // YYYY-MM-DD or DD/MM/YYYY
   category: string;
   status: 'paid' | 'pending' | 'pago' | 'recebido' | 'a receber';
+  is_recurring?: boolean;
+  recurrence_type?: 'monthly' | 'yearly';
+  recurrence_months?: number;
+  installment_current?: number;
+  installment_total?: number;
+  recurrence_group_id?: string;
 }
 
 export type ProjectStage = 'proposta' | 'negociacao' | 'em_andamento' | 'espera' | 'concluido';
