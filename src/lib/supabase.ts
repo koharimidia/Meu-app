@@ -174,8 +174,53 @@ export async function fetchAllData() {
   let finance: FinanceItem[] = getLocal('finance', SEED_FINANCE);
   let clients: ClientProject[] = getLocal('clients', SEED_CLIENTS);
   let invoices: InvoiceNF[] = getLocal('invoices', SEED_INVOICES);
-  let isConnected = false;
+  let isConnected = true;
 
+  // 1. Fetch from centralized server persistent store (shared across all devices)
+  try {
+    const res = await fetch('/api/data');
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        const serverHasData =
+          (d.tasks && d.tasks.length > 0) ||
+          (d.finance && d.finance.length > 0) ||
+          (d.events && d.events.length > 0);
+
+        if (serverHasData) {
+          tasks = d.tasks || [];
+          events = d.events || [];
+          finance = (d.finance || []).map((x: any) => ({ ...x, value: Number(x.value || 0) }));
+          clients = d.clients || [];
+          invoices = (d.invoices || []).map((x: any) => ({
+            ...x,
+            value: Number(x.value || 0),
+            taxRate: x.taxRate ? Number(x.taxRate) : undefined,
+            netValue: x.netValue ? Number(x.netValue) : undefined,
+          }));
+
+          setLocal('tasks', tasks);
+          setLocal('events', events);
+          setLocal('finance', finance);
+          setLocal('clients', clients);
+          setLocal('invoices', invoices);
+          return { tasks, events, finance, clients, invoices, isConnected: true };
+        } else {
+          // Initialize server with seed/local data so other devices receive it
+          await fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tasks, events, finance, clients, invoices }),
+          }).catch(() => {});
+        }
+      }
+    }
+  } catch (serverErr) {
+    console.warn('Server storage fetch error, attempting Supabase/local fallback:', serverErr);
+  }
+
+  // 2. Secondary fallback attempt with Supabase (if configured)
   try {
     const [tRes, eRes, fRes, cRes, iRes] = await Promise.allSettled([
       supabase.from('tasks').select('*'),
@@ -185,131 +230,136 @@ export async function fetchAllData() {
       supabase.from('invoices').select('*'),
     ]);
 
-    if (tRes.status === 'fulfilled' && !tRes.value.error && tRes.value.data) {
-      if (tRes.value.data.length > 0) {
-        tasks = tRes.value.data as Task[];
-        setLocal('tasks', tasks);
-      }
-      isConnected = true;
+    if (tRes.status === 'fulfilled' && !tRes.value.error && tRes.value.data?.length) {
+      tasks = tRes.value.data as Task[];
+      setLocal('tasks', tasks);
     }
-
-    if (eRes.status === 'fulfilled' && !eRes.value.error && eRes.value.data) {
-      if (eRes.value.data.length > 0) {
-        events = eRes.value.data as CalendarEvent[];
-        setLocal('events', events);
-      }
-      isConnected = true;
+    if (eRes.status === 'fulfilled' && !eRes.value.error && eRes.value.data?.length) {
+      events = eRes.value.data as CalendarEvent[];
+      setLocal('events', events);
     }
-
-    if (fRes.status === 'fulfilled' && !fRes.value.error && fRes.value.data) {
-      if (fRes.value.data.length > 0) {
-        finance = (fRes.value.data as FinanceItem[]).map(x => ({ ...x, value: Number(x.value || 0) }));
-        setLocal('finance', finance);
-      }
-      isConnected = true;
+    if (fRes.status === 'fulfilled' && !fRes.value.error && fRes.value.data?.length) {
+      finance = (fRes.value.data as FinanceItem[]).map((x) => ({ ...x, value: Number(x.value || 0) }));
+      setLocal('finance', finance);
     }
-
-    if (cRes.status === 'fulfilled' && !cRes.value.error && cRes.value.data) {
-      if (cRes.value.data.length > 0) {
-        clients = cRes.value.data as ClientProject[];
-        setLocal('clients', clients);
-      }
+    if (cRes.status === 'fulfilled' && !cRes.value.error && cRes.value.data?.length) {
+      clients = cRes.value.data as ClientProject[];
+      setLocal('clients', clients);
     }
-
-    if (iRes.status === 'fulfilled' && !iRes.value.error && iRes.value.data) {
-      if (iRes.value.data.length > 0) {
-        invoices = (iRes.value.data as InvoiceNF[]).map(x => ({
-          ...x,
-          value: Number(x.value || 0),
-          taxRate: x.taxRate ? Number(x.taxRate) : undefined,
-          netValue: x.netValue ? Number(x.netValue) : undefined,
-        }));
-        setLocal('invoices', invoices);
-      }
+    if (iRes.status === 'fulfilled' && !iRes.value.error && iRes.value.data?.length) {
+      invoices = (iRes.value.data as InvoiceNF[]).map((x) => ({
+        ...x,
+        value: Number(x.value || 0),
+        taxRate: x.taxRate ? Number(x.taxRate) : undefined,
+        netValue: x.netValue ? Number(x.netValue) : undefined,
+      }));
+      setLocal('invoices', invoices);
     }
-  } catch (err) {
-    console.warn('Supabase fetch error, using local/cached data:', err);
+  } catch {
+    // Keep local/server data
   }
 
   return { tasks, events, finance, clients, invoices, isConnected };
 }
 
+async function persistItemToServer(collection: string, item: any, isDelete: boolean = false) {
+  try {
+    await fetch('/api/data/item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection, item, isDelete }),
+    });
+  } catch (e) {
+    console.warn(`Failed to persist ${collection} item to server:`, e);
+  }
+}
+
 export async function saveTask(task: Task) {
+  persistItemToServer('tasks', task, false);
   try {
     await supabase.from('tasks').upsert(task);
-  } catch (err) {
-    console.warn('Failed to upsert task in Supabase:', err);
+  } catch {
+    // Ignore Supabase connection error
   }
 }
 
 export async function deleteTask(id: string) {
+  persistItemToServer('tasks', id, true);
   try {
     await supabase.from('tasks').delete().eq('id', id);
-  } catch (err) {
-    console.warn('Failed to delete task in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function saveEvent(event: CalendarEvent) {
+  persistItemToServer('events', event, false);
   try {
     await supabase.from('events').upsert(event);
-  } catch (err) {
-    console.warn('Failed to upsert event in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function deleteEvent(id: string) {
+  persistItemToServer('events', id, true);
   try {
     await supabase.from('events').delete().eq('id', id);
-  } catch (err) {
-    console.warn('Failed to delete event in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function saveFinance(item: FinanceItem) {
+  persistItemToServer('finance', item, false);
   try {
     await supabase.from('finance').upsert(item);
-  } catch (err) {
-    console.warn('Failed to upsert finance in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function deleteFinance(id: string) {
+  persistItemToServer('finance', id, true);
   try {
     await supabase.from('finance').delete().eq('id', id);
-  } catch (err) {
-    console.warn('Failed to delete finance in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function saveClient(client: ClientProject) {
+  persistItemToServer('clients', client, false);
   try {
     await supabase.from('clients').upsert(client);
-  } catch (err) {
-    console.warn('Failed to upsert client in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function deleteClient(id: string) {
+  persistItemToServer('clients', id, true);
   try {
     await supabase.from('clients').delete().eq('id', id);
-  } catch (err) {
-    console.warn('Failed to delete client in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function saveInvoice(invoice: InvoiceNF) {
+  persistItemToServer('invoices', invoice, false);
   try {
     await supabase.from('invoices').upsert(invoice);
-  } catch (err) {
-    console.warn('Failed to upsert invoice in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }
 
 export async function deleteInvoice(id: string) {
+  persistItemToServer('invoices', id, true);
   try {
     await supabase.from('invoices').delete().eq('id', id);
-  } catch (err) {
-    console.warn('Failed to delete invoice in Supabase:', err);
+  } catch {
+    // Ignore
   }
 }

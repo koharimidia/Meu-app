@@ -109,5 +109,6 @@ export interface AuthUser {
   email: string;
   name?: string;
   role?: string;
-  provider?: 'supabase' | 'local';
+  avatar?: string;
+  provider?: 'supabase' | 'local' | 'google';
 }

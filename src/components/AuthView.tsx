@@ -13,9 +13,12 @@ import {
   CheckCircle2,
   Database,
   Building,
+  Cloud,
+  Laptop,
+  Smartphone,
 } from 'lucide-react';
 import { AuthUser } from '../types';
-import { signInUser, signUpUser } from '../lib/auth';
+import { signInUser, signUpUser, triggerGoogleSignIn } from '../lib/auth';
 
 interface AuthViewProps {
   onLoginSuccess: (user: AuthUser) => void;
@@ -85,6 +88,26 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  const handleGoogleSignIn = () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    triggerGoogleSignIn(
+      (user) => {
+        setIsLoading(false);
+        setSuccessMsg(`Conectado com o Google (${user.email})! Carregando aplicativo...`);
+        setTimeout(() => {
+          onLoginSuccess(user);
+        }, 350);
+      },
+      (err) => {
+        setIsLoading(false);
+        setErrorMsg(err || 'Não foi possível conectar com o Google no momento.');
+      }
+    );
+  };
+
   const handleQuickDemoAdmin = () => {
     setEmail('koharimidia@gmail.com');
     setPassword('kohari2026');
@@ -112,12 +135,50 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
             </span>
           </h1>
           <p className="text-xs text-[#8ca4bd] mt-1.5">
-            Entre com seu e-mail e senha para acessar o painel de produtividade e finanças
+            Conecte-se com sua conta Google ou credenciais para acessar e sincronizar em qualquer dispositivo
           </p>
         </div>
 
         {/* Card Box */}
         <div className="bg-[#091522]/95 border border-[#18314a] rounded-2xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl relative">
+          {/* Google Sign-In Primary Button */}
+          <div className="mb-5">
+            <button
+              id="btn-google-sign-in"
+              type="button"
+              disabled={isLoading}
+              onClick={handleGoogleSignIn}
+              className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-800 text-xs font-semibold shadow-md flex items-center justify-center gap-2.5 transition-all cursor-pointer border border-slate-200 active:scale-[0.99] disabled:opacity-50"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.14z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                />
+              </svg>
+              <span>Entrar com a Conta Google</span>
+            </button>
+          </div>
+
+          <div className="relative flex items-center justify-center my-4">
+            <div className="border-t border-[#18324a] w-full" />
+            <span className="bg-[#091522] px-3 text-[10px] uppercase tracking-wider text-[#68819a] font-medium absolute">
+              ou com e-mail e senha
+            </span>
+          </div>
+
           {/* Mode Switcher Tabs */}
           <div className="grid grid-cols-2 gap-1 p-1 bg-[#050c14] rounded-xl border border-[#13273c] mb-6">
             <button
@@ -309,20 +370,33 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
 
           {/* Security & Database Status Footer */}
           <div className="mt-6 pt-4 border-t border-[#13273c] flex items-center justify-between text-[11px] text-[#637d97]">
-            <div className="flex items-center gap-1.5">
-              <Database size={12} className="text-emerald-400" />
-              <span>Supabase Auth</span>
+            <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+              <Cloud size={12} />
+              <span>Nuvem Conectada</span>
             </div>
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-blue-400" />
-              <span>Sessão Criptografada</span>
+              <span>Sessão Protegida</span>
             </div>
           </div>
         </div>
 
-        {/* Info card below */}
-        <div className="mt-4 p-3 bg-[#07111b]/80 border border-[#142637] rounded-xl text-[11px] text-[#738ca3] text-center leading-relaxed">
-          🔒 <strong className="text-white">Acesso Restrito:</strong> Seus dados de tarefas, finanças, notas fiscais e agenda ficam protegidos por senha.
+        {/* Multi-Device Synchronized Banner */}
+        <div className="mt-4 p-3.5 bg-[#07131f]/90 border border-[#173048] rounded-xl text-xs text-[#8299b0] leading-relaxed flex items-start gap-3 shadow-lg">
+          <div className="p-2 rounded-lg bg-blue-500/15 border border-blue-500/25 text-blue-400 shrink-0 mt-0.5">
+            <Cloud size={16} />
+          </div>
+          <div className="space-y-1">
+            <div className="font-semibold text-white flex items-center gap-1.5 text-xs">
+              <span>Sincronização em Tempo Real</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30">
+                Multi-Dispositivos
+              </span>
+            </div>
+            <p className="text-[11px] text-[#8aa1b7]">
+              Ao abrir o link no seu celular, tablet ou em qualquer outro computador com sua conta Google, todos os lançamentos, cursos, tarefas e relatórios são carregados automaticamente atualizados.
+            </p>
+          </div>
         </div>
       </div>
     </div>

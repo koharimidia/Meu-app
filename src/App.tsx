@@ -197,6 +197,33 @@ export default function App() {
     }
   }, [currentUser, loadAppData, loadSheets]);
 
+  // Auto-sync when window gains focus or on interval so changes on other devices appear immediately
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const handleFocus = () => {
+      loadAppData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadAppData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    const interval = setInterval(() => {
+      loadAppData();
+    }, 20000); // Poll every 20 seconds
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [currentUser, loadAppData]);
+
   const handleLoginSuccess = useCallback((user: AuthUser) => {
     setCurrentUser(user);
     showToast(`Bem-vindo, ${user.name || user.email}!`, 'success');

@@ -191,10 +191,10 @@ export const TopBar: React.FC<TopBarProps> = ({
               </div>
             </div>
 
-            {/* Supabase status badge */}
+            {/* Cloud multi-device status badge */}
             <div className="flex items-center gap-1.5 pr-2 border-r border-[#193247] text-[10px] text-[#8194a8]">
               <Database size={11} className={isSupabaseConnected ? 'text-emerald-400' : 'text-amber-400'} />
-              <span>{isSupabaseConnected ? 'Online' : 'Local'}</span>
+              <span>{isSupabaseConnected ? 'Nuvem Ativa' : 'Local'}</span>
             </div>
 
             {/* Google Agenda badge */}
@@ -359,13 +359,21 @@ export const TopBar: React.FC<TopBarProps> = ({
             {user && (
               <div className="flex items-center gap-1.5 pl-1.5 border-l border-[#193248]">
                   <div
-                    title={`Conectado como: ${user.email} (${user.role || 'Admin'})`}
+                    title={`Conectado como: ${user.email} (${user.role || 'Admin'}) ${user.provider === 'google' ? '• Conta Google' : ''}`}
                     className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#07131f] border border-[#1b344c] text-[11px] text-[#a4bccc]"
                   >
-                    <div className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold text-[10px]">
-                      {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <span className="max-w-[110px] truncate font-medium text-white">
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover border border-blue-500/40" />
+                    ) : user.provider === 'google' ? (
+                      <div className="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center font-bold text-[10px] shadow-xs">
+                        G
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold text-[10px]">
+                        {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="max-w-[120px] truncate font-medium text-white">
                       {user.name || user.email.split('@')[0]}
                     </span>
                   </div>

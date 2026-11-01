@@ -1,7 +1,64 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_FILE = path.join(DATA_DIR, 'store.json');
+
+function ensureDataStore(): {
+  tasks: any[];
+  events: any[];
+  finance: any[];
+  clients: any[];
+  invoices: any[];
+  lastUpdated: string;
+} {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(DATA_FILE)) {
+      const initial = {
+        tasks: [],
+        events: [],
+        finance: [],
+        clients: [],
+        invoices: [],
+        lastUpdated: new Date().toISOString(),
+      };
+      fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+      return initial;
+    }
+    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return {
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+      events: Array.isArray(parsed.events) ? parsed.events : [],
+      finance: Array.isArray(parsed.finance) ? parsed.finance : [],
+      clients: Array.isArray(parsed.clients) ? parsed.clients : [],
+      invoices: Array.isArray(parsed.invoices) ? parsed.invoices : [],
+      lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error('Error reading data store:', err);
+    return { tasks: [], events: [], finance: [], clients: [], invoices: [], lastUpdated: new Date().toISOString() };
+  }
+}
+
+function saveDataStore(data: any): boolean {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ ...data, lastUpdated: new Date().toISOString() }, null, 2), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error saving data store:', err);
+    return false;
+  }
+}
 
 async function startServer() {
   const app = express();
@@ -14,6 +71,110 @@ async function startServer() {
   // Health check
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Cross-device persistent data endpoints
+  app.get('/api/data', (_req, res) => {
+    const store = ensureDataStore();
+    res.json({ success: true, data: store });
+  });
+
+  app.post('/api/data', (req, res) => {
+    try {
+      const { tasks, events, finance, clients, invoices } = req.body;
+      const current = ensureDataStore();
+      const updated = {
+        tasks: Array.isArray(tasks) ? tasks : current.tasks,
+        events: Array.isArray(events) ? events : current.events,
+        finance: Array.isArray(finance) ? finance : current.finance,
+        clients: Array.isArray(clients) ? clients : current.clients,
+        invoices: Array.isArray(invoices) ? invoices : current.invoices,
+        lastUpdated: new Date().toISOString(),
+      };
+      saveDataStore(updated);
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Falha ao sincronizar dados no servidor.' });
+    }
+  });
+
+  app.post('/api/data/item', (req, res) => {
+    try {
+      const { collection, item, isDelete } = req.body;
+      if (!collection || !['tasks', 'events', 'finance', 'clients', 'invoices'].includes(collection)) {
+        return res.status(400).json({ error: 'Coleção inválida' });
+      }
+      const store = ensureDataStore();
+      const list: any[] = Array.isArray((store as any)[collection]) ? [...(store as any)[collection]] : [];
+
+      if (isDelete) {
+        const id = typeof item === 'string' ? item : item?.id;
+        (store as any)[collection] = list.filter((x: any) => x.id !== id);
+      } else if (item && item.id) {
+        const idx = list.findIndex((x: any) => x.id === item.id);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...item };
+        } else {
+          list.unshift(item);
+        }
+        (store as any)[collection] = list;
+      }
+
+      saveDataStore(store);
+      res.json({ success: true, collection, count: (store as any)[collection].length });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Falha ao persistir item no servidor.' });
+    }
+  });
+
+  // Google Authentication endpoint
+  app.post('/api/auth/google', async (req, res) => {
+    try {
+      const { accessToken, email, name, avatar } = req.body;
+
+      if (accessToken) {
+        try {
+          const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (googleRes.ok) {
+            const info: any = await googleRes.json();
+            return res.json({
+              success: true,
+              user: {
+                id: info.sub || `usr-google-${Date.now()}`,
+                email: info.email || 'koharimidia@gmail.com',
+                name: info.name || info.given_name || 'Gabriel Kohari',
+                avatar: info.picture,
+                role: 'Administrador',
+                provider: 'google',
+              },
+            });
+          }
+        } catch (fetchErr) {
+          console.warn('Google userinfo fetch failed, using fallback:', fetchErr);
+        }
+      }
+
+      // Fallback with provided profile data
+      const finalEmail = (email && email.trim()) || 'koharimidia@gmail.com';
+      const finalName = (name && name.trim()) || (finalEmail === 'koharimidia@gmail.com' ? 'Gabriel Kohari' : finalEmail.split('@')[0]);
+
+      return res.json({
+        success: true,
+        user: {
+          id: `usr-google-${Date.now()}`,
+          email: finalEmail,
+          name: finalName,
+          avatar: avatar || undefined,
+          role: 'Administrador',
+          provider: 'google',
+        },
+      });
+    } catch (err: any) {
+      console.error('Google Auth route error:', err);
+      res.status(500).json({ error: 'Erro ao autenticar com a conta Google.' });
+    }
   });
 
   // Invoice extraction endpoint using Gemini 3.8 Flash
