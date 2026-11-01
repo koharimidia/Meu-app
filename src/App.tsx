@@ -10,6 +10,7 @@ import {
   Priority,
   Category,
   ProjectStage,
+  AuthUser,
 } from './types';
 import {
   fetchAllData,
@@ -24,7 +25,10 @@ import {
   saveInvoice,
   deleteInvoice,
   setLocal,
+  supabase,
 } from './lib/supabase';
+import { getActiveUser, signOutUser } from './lib/auth';
+import { AuthView } from './components/AuthView';
 import { fetchSheetExpenses, SheetFetchResult } from './lib/googleSheets';
 import {
   initGoogleApis,
@@ -43,6 +47,9 @@ import { Toast } from './components/Toast';
 import { todayISO, formatMoney } from './lib/formatters';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+
   const [currentView, setCurrentView] = useState<NavView>('home');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -140,11 +147,66 @@ export default function App() {
     }
   }, []);
 
+  // Initial Auth check and listener
   useEffect(() => {
-    loadAppData();
-    loadSheets();
-    initGoogleApis();
-  }, [loadAppData, loadSheets]);
+    let isMounted = true;
+    const checkInitialAuth = async () => {
+      try {
+        const user = await getActiveUser();
+        if (isMounted) {
+          setCurrentUser(user);
+        }
+      } catch (err) {
+        console.warn('Auth check error:', err);
+      } finally {
+        if (isMounted) {
+          setIsAuthChecking(false);
+        }
+      }
+    };
+
+    checkInitialAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const u: AuthUser = {
+          id: session.user.id,
+          email: session.user.email || 'usuario@central.com',
+          name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
+          role: 'Administrador',
+          provider: 'supabase',
+        };
+        setCurrentUser(u);
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  // Load app data when user is authenticated
+  useEffect(() => {
+    if (currentUser) {
+      loadAppData();
+      loadSheets();
+      initGoogleApis();
+    }
+  }, [currentUser, loadAppData, loadSheets]);
+
+  const handleLoginSuccess = useCallback((user: AuthUser) => {
+    setCurrentUser(user);
+    showToast(`Bem-vindo, ${user.name || user.email}!`, 'success');
+  }, [showToast]);
+
+  const handleSignOut = useCallback(async () => {
+    await signOutUser();
+    setCurrentUser(null);
+    showToast('Sessão encerrada com sucesso', 'info');
+  }, [showToast]);
 
   // Task Handlers
   const handleToggleTask = async (id: string) => {
@@ -513,6 +575,32 @@ export default function App() {
       .reduce((acc, f) => acc + Number(f.value || 0), 0);
   }, [finance]);
 
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-[#04080e] flex flex-col items-center justify-center p-4">
+        <div className="w-10 h-10 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-3.5" />
+        <div className="text-xs font-medium text-[#8ea4b8] tracking-wide">
+          Verificando credenciais de acesso...
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <>
+        <AuthView onLoginSuccess={handleLoginSuccess} />
+        {toast.message && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast({ message: null, type: 'success' })}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#050b12] text-[#eef5fb] font-sans flex flex-col">
       {/* Top Header with Brand, Navigation & Actions */}
@@ -539,6 +627,8 @@ export default function App() {
         onTogglePrivacyMode={togglePrivacyMode}
         balance={balance}
         receivablesTotal={receivablesTotal}
+        user={currentUser}
+        onSignOut={handleSignOut}
       />
 
       {/* Main Content Area */}

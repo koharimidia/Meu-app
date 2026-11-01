@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task, CalendarEvent, FinanceItem } from '../types';
 import { formatMoney, formatDateBR, formatRelativeDate, CATEGORY_COLORS, PRIORITY_STYLES, todayISO, toISODate } from '../lib/formatters';
-import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar, Eye, EyeOff } from 'lucide-react';
+import { Check, Clock, Plus, ChevronRight, ChevronLeft, Calendar, Eye, EyeOff, Edit2, Trash2, ArrowUpRight, TrendingUp } from 'lucide-react';
 
 interface HomeViewProps {
   tasks: Task[];
@@ -157,32 +157,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="space-y-5">
-      {/* Upper Grid */}
+      {/* Upper Grid: Prioridades da Semana (reduced to 4 cols) & Resumo Financeiro (expanded to 8 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* 1. Week's Priorities (Card span 7) */}
-        <div className="lg:col-span-7 bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        {/* 1. Week's Priorities (Card span 4 - reduzido na metade) */}
+        <div className="lg:col-span-4 bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-4 sm:p-5 shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-[#14283a]">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-white tracking-wide">🎯 Prioridades da Semana</h3>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/20">
-                  {pendingWeekCount} pendentes
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#14283a]">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide truncate">🎯 Prioridades da Semana</h3>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/20 shrink-0">
+                  {pendingWeekCount}
                 </span>
               </div>
               <button
                 onClick={() => onOpenModal('task')}
-                className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
+                className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors shrink-0"
               >
                 <Plus size={13} /> Nova
               </button>
             </div>
 
             {weekTasks.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#8194a8]">
-                Nenhuma tarefa prioritária agendada para esta semana. Tudo em dia! ✨
+              <div className="py-7 text-center text-xs text-[#8194a8]">
+                Nenhuma prioridade para esta semana. Tudo em dia! ✨
               </div>
             ) : (
-              <div className="divide-y divide-[#14283a] max-h-[290px] overflow-y-auto pr-1">
+              <div className="divide-y divide-[#14283a] max-h-[250px] overflow-y-auto pr-1">
                 {weekTasks.map((t) => {
                   const prio = PRIORITY_STYLES[t.priority] || PRIORITY_STYLES.Média;
                   const cat = CATEGORY_COLORS[t.category] || CATEGORY_COLORS.Trabalho;
@@ -190,11 +190,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   return (
                     <div
                       key={t.id}
-                      className={`py-2.5 flex items-center justify-between gap-3 group transition-opacity ${
+                      className={`py-2.5 flex items-center justify-between gap-2 group transition-opacity ${
                         t.done ? 'opacity-40' : 'opacity-100'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <button
                           onClick={() => onToggleTask(t.id)}
                           className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
@@ -205,15 +205,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         >
                           {t.done && <Check size={11} strokeWidth={3} />}
                         </button>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p
                             className={`text-xs font-medium truncate ${
                               t.done ? 'line-through text-[#8194a8]' : 'text-[#eef5fb]'
                             }`}
+                            title={t.title}
                           >
                             {t.title}
                           </p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${cat.bg} ${cat.text} ${cat.border}`}>
                               {t.category}
                             </span>
@@ -232,21 +233,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${prio.bg} ${prio.text}`}>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${prio.bg} ${prio.text}`}>
                           {t.priority}
                         </span>
                         <button
                           onClick={() => onEditTask(t)}
-                          className="text-[11px] text-[#8194a8] hover:text-white px-1.5 py-0.5 rounded bg-[#102233] hover:bg-[#16304a] transition-colors"
+                          className="p-1 text-[#8194a8] hover:text-white rounded bg-[#102233] hover:bg-[#16304a] transition-colors"
+                          title="Editar"
                         >
-                          Editar
+                          <Edit2 size={12} />
                         </button>
                         <button
                           onClick={() => onDeleteTask(t.id)}
-                          className="text-[11px] text-[#8194a8] hover:text-rose-400 px-1.5 py-0.5 rounded bg-[#102233] hover:bg-rose-500/10 transition-colors"
+                          className="p-1 text-[#8194a8] hover:text-rose-400 rounded bg-[#102233] hover:bg-rose-500/10 transition-colors"
+                          title="Excluir"
                         >
-                          ✕
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
@@ -257,10 +260,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* 2. Financial Overview & Category Donut (Card span 5) */}
-        <div className="lg:col-span-5 bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        {/* 2. Financial Overview & Category Donut (Card span 8 - espaço ampliado) */}
+        <div className="lg:col-span-8 bg-[#0a1724]/95 border border-[#1b3043] rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#14283a]">
+            <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-[#14283a]">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white tracking-wide">💰 Resumo Financeiro</h3>
                 {onTogglePrivacyMode && (
@@ -276,95 +279,152 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     {isPrivacyMode ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
                 )}
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 hidden sm:inline">
+                  Visão Consolidada
+                </span>
               </div>
-              <span className="text-[11px] text-[#8194a8]">Ano {currentYear}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[#8194a8] font-medium">Exercício {currentYear}</span>
+                <button
+                  onClick={() => onOpenModal('finance')}
+                  className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors px-2 py-0.5 rounded bg-[#102233] border border-[#1f374e]"
+                >
+                  <Plus size={12} /> Novo Lançamento
+                </button>
+              </div>
             </div>
 
-            {/* 4 Mini Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-              <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
-                <small className="text-[10px] text-[#8194a8] block font-medium">Saldo Líquido</small>
-                <strong className={`text-sm block mt-1 font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {/* 4 Metrics in wide layout */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-[#0b1d2d] border border-[#183147] rounded-xl p-3 hover:border-[#234563] transition-colors">
+                <div className="flex items-center justify-between">
+                  <small className="text-[10px] text-[#8194a8] block font-medium">Saldo Líquido</small>
+                  <span className={`text-[10px] font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {balance >= 0 ? 'Positivo' : 'Negativo'}
+                  </span>
+                </div>
+                <strong className={`text-base block mt-1.5 font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {formatMoney(balance, isPrivacyMode)}
                 </strong>
               </div>
 
-              <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
-                <small className="text-[10px] text-[#8194a8] block font-medium">Receitas ({currentYear})</small>
-                <strong className="text-sm block mt-1 font-bold text-blue-400">
+              <div className="bg-[#0b1d2d] border border-[#183147] rounded-xl p-3 hover:border-[#234563] transition-colors">
+                <div className="flex items-center justify-between">
+                  <small className="text-[10px] text-[#8194a8] block font-medium">Receitas ({currentYear})</small>
+                  <span className="text-[10px] text-blue-400 font-bold">Entradas</span>
+                </div>
+                <strong className="text-base block mt-1.5 font-bold text-blue-400">
                   {formatMoney(incomePaid, isPrivacyMode)}
                 </strong>
               </div>
 
-              <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
-                <small className="text-[10px] text-[#8194a8] block font-medium">Despesas Pagas</small>
-                <strong className="text-sm block mt-1 font-bold text-rose-400">
+              <div className="bg-[#0b1d2d] border border-[#183147] rounded-xl p-3 hover:border-[#234563] transition-colors">
+                <div className="flex items-center justify-between">
+                  <small className="text-[10px] text-[#8194a8] block font-medium">Despesas Pagas</small>
+                  <span className="text-[10px] text-rose-400 font-bold">Saídas</span>
+                </div>
+                <strong className="text-base block mt-1.5 font-bold text-rose-400">
                   {formatMoney(expensePaid, isPrivacyMode)}
                 </strong>
               </div>
 
-              <div className="bg-[#0b1d2d] border border-[#183147] rounded-lg p-2.5">
-                <small className="text-[10px] text-[#8194a8] block font-medium">A Receber</small>
-                <strong className="text-sm block mt-1 font-bold text-amber-400">
+              <div className="bg-[#0b1d2d] border border-[#183147] rounded-xl p-3 hover:border-[#234563] transition-colors">
+                <div className="flex items-center justify-between">
+                  <small className="text-[10px] text-[#8194a8] block font-medium">A Receber</small>
+                  <span className="text-[10px] text-amber-400 font-bold">Pendente</span>
+                </div>
+                <strong className="text-base block mt-1.5 font-bold text-amber-400">
                   {formatMoney(receivableTotal, isPrivacyMode)}
                 </strong>
               </div>
             </div>
 
-            {/* Expense breakdown chart */}
-            <div className="flex items-center gap-4 pt-1">
-              {/* CSS conic gradient donut matching original design */}
-              <div className="relative shrink-0 flex items-center justify-center">
-                <div
-                  className="w-24 h-24 rounded-full flex items-center justify-center shadow-inner"
-                  style={{
-                    background:
-                      totalExpenseBreakdown > 0
-                        ? `conic-gradient(${categoryEntries
-                            .reduce<{ stops: string[]; current: number }>(
-                              (acc, [_, val], i) => {
-                                const pct = (val / totalExpenseBreakdown) * 100;
-                                const col = palette[i % palette.length];
-                                acc.stops.push(`${col} ${acc.current}% ${acc.current + pct}%`);
-                                acc.current += pct;
-                                return acc;
-                              },
-                              { stops: [], current: 0 }
-                            )
-                            .stops.join(', ')})`
-                        : '#152536',
-                  }}
-                >
-                  <div className="w-16 h-16 rounded-full bg-[#0a1724] flex flex-col items-center justify-center text-center">
-                    <span className="text-[9px] text-[#8194a8] font-medium">Total</span>
-                    <span className="text-[10px] font-bold text-white">{formatMoney(totalExpenseBreakdown, isPrivacyMode)}</span>
+            {/* Bottom 2-column section: Left = Donut + Categories, Right = Cashflow stats */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-1 border-t border-[#14283a]/70">
+              {/* Donut Chart & Category breakdown (7 cols) */}
+              <div className="md:col-span-7 flex items-center gap-4">
+                <div className="relative shrink-0 flex items-center justify-center">
+                  <div
+                    className="w-22 h-22 rounded-full flex items-center justify-center shadow-inner"
+                    style={{
+                      background:
+                        totalExpenseBreakdown > 0
+                          ? `conic-gradient(${categoryEntries
+                              .reduce<{ stops: string[]; current: number }>(
+                                (acc, [_, val], i) => {
+                                  const pct = (val / totalExpenseBreakdown) * 100;
+                                  const col = palette[i % palette.length];
+                                  acc.stops.push(`${col} ${acc.current}% ${acc.current + pct}%`);
+                                  acc.current += pct;
+                                  return acc;
+                                },
+                                { stops: [], current: 0 }
+                              )
+                              .stops.join(', ')})`
+                          : '#152536',
+                    }}
+                  >
+                    <div className="w-15 h-15 rounded-full bg-[#0a1724] flex flex-col items-center justify-center text-center">
+                      <span className="text-[8px] text-[#8194a8] font-medium uppercase">Despesas</span>
+                      <span className="text-[10px] font-bold text-white px-0.5 truncate max-w-[56px]">
+                        {formatMoney(totalExpenseBreakdown, isPrivacyMode)}
+                      </span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Legend with percentages */}
+                <div className="flex-1 space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                  {categoryEntries.length === 0 ? (
+                    <p className="text-xs text-[#8194a8]">Nenhuma despesa paga registrada neste período.</p>
+                  ) : (
+                    categoryEntries.slice(0, 4).map(([cat, val], i) => {
+                      const pct = totalExpenseBreakdown > 0 ? Math.round((val / totalExpenseBreakdown) * 100) : 0;
+                      return (
+                        <div key={cat} className="flex items-center justify-between text-[11px]">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: palette[i % palette.length] }}
+                            />
+                            <span className="text-[#9eb0c0] truncate">{cat}</span>
+                          </div>
+                          <span className="font-semibold text-white pl-2">
+                            {pct}% <span className="text-[10px] text-[#6f8498]">({formatMoney(val, isPrivacyMode)})</span>
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
-              {/* Legend with percentages */}
-              <div className="flex-1 space-y-1.5 max-h-24 overflow-y-auto pr-1">
-                {categoryEntries.length === 0 ? (
-                  <p className="text-xs text-[#8194a8]">Nenhuma despesa paga registrada.</p>
-                ) : (
-                  categoryEntries.slice(0, 4).map(([cat, val], i) => {
-                    const pct = totalExpenseBreakdown > 0 ? Math.round((val / totalExpenseBreakdown) * 100) : 0;
-                    return (
-                      <div key={cat} className="flex items-center justify-between text-[11px]">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: palette[i % palette.length] }}
-                          />
-                          <span className="text-[#9eb0c0] truncate">{cat}</span>
-                        </div>
-                        <span className="font-semibold text-white pl-2">
-                          {pct}% <span className="text-[10px] text-[#6f8498]">({formatMoney(val, isPrivacyMode)})</span>
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
+              {/* Financial Health & Cashflow Insights (5 cols) */}
+              <div className="md:col-span-5 bg-[#081522] border border-[#162a3d] rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#8194a8] flex items-center gap-1">
+                    <TrendingUp size={12} className="text-emerald-400" />
+                    Margem Líquida
+                  </span>
+                  <span className={`font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {incomePaid > 0 ? `${Math.round((balance / incomePaid) * 100)}%` : '0%'}
+                  </span>
+                </div>
+                {/* Visual bar of expense vs revenue */}
+                <div className="w-full h-1.5 bg-[#14283a] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, incomePaid > 0 ? Math.round(((incomePaid - expensePaid) / incomePaid) * 100) : 0))}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-[#8194a8] pt-0.5">
+                  <span>Previsão Total a Entrar:</span>
+                  <strong className="text-amber-400 font-semibold">
+                    {formatMoney(receivableTotal, isPrivacyMode)}
+                  </strong>
+                </div>
               </div>
             </div>
           </div>

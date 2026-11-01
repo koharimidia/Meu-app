@@ -14,8 +14,10 @@ import {
   Eye,
   EyeOff,
   TrendingUp,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
-import { NavView } from '../types';
+import { NavView, AuthUser } from '../types';
 import { formatMoney } from '../lib/formatters';
 
 interface TopBarProps {
@@ -36,6 +38,9 @@ interface TopBarProps {
   onTogglePrivacyMode: () => void;
   balance?: number;
   receivablesTotal?: number;
+  // User Authentication
+  user?: AuthUser | null;
+  onSignOut?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -55,6 +60,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onTogglePrivacyMode,
   balance = 0,
   receivablesTotal = 0,
+  user,
+  onSignOut,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -334,6 +341,36 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </div>
               )}
             </div>
+
+            {/* User Account / Logout */}
+            {user && (
+              <div className="flex items-center gap-1.5 pl-1.5 border-l border-[#193248]">
+                  <div
+                    title={`Conectado como: ${user.email} (${user.role || 'Admin'})`}
+                    className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#07131f] border border-[#1b344c] text-[11px] text-[#a4bccc]"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold text-[10px]">
+                      {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <span className="max-w-[110px] truncate font-medium text-white">
+                      {user.name || user.email.split('@')[0]}
+                    </span>
+                  </div>
+
+                  {onSignOut && (
+                    <button
+                      id="btn-logout"
+                      type="button"
+                      onClick={onSignOut}
+                      title="Sair do aplicativo (Encerrar sessão)"
+                      className="p-1.5 rounded-lg bg-[#0a1622] hover:bg-rose-950/40 text-[#8299b0] hover:text-rose-300 border border-[#1a3147] hover:border-rose-800/50 text-xs transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <LogOut size={13} />
+                      <span className="text-[11px] hidden xl:inline">Sair</span>
+                    </button>
+                  )}
+                </div>
+              )}
           </div>
         </div>
 
